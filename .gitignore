@@ -22,3 +22,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+/backend/mail/__pycache__/
+/backend/mail/__pycache__/
