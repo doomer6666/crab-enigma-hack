@@ -11,6 +11,7 @@ urlpatterns = [
 
     # Swagger / OpenAPI
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/schema.json', SpectacularAPIView.as_view(), name='schema'),
     # Интерфейс Swagger (самый популярный)
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     # Интерфейс Redoc (альтернативный, красивый)

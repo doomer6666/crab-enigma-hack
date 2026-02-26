@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: jarvis_postgres
+    environment:
+      POSTGRES_DB: jarvis_db
+      POSTGRES_USER: jarvis_user
+      POSTGRES_PASSWORD: jarvis_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: jarvis_backend
+    depends_on:
+      - db
+    env_file:
+      - ./backend/.env
+    environment:
+      - DATABASE_URL=postgres://jarvis_user:jarvis_password@db:5432/jarvis_db
+      - DJANGO_ALLOWED_HOSTS=*
+    volumes:
+      - static_volume:/app/static
+
+  frontend:
+    build: ./frontend
+    container_name: jarvis_frontend
+    ports:
+      - "80:80" # Открываем наружу только 80 порт
+    depends_on:
+      - backend
+    volumes:
+      # Nginx берет статику админки из того же volume, куда её положил Django
+      - static_volume:/app/static
+
+volumes:
+  postgres_data:
+  static_volume:
