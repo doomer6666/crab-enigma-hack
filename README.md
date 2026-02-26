@@ -150,8 +150,6 @@ Frontend (React)
 |
 Оператор
 
-text
-
 ---
 
 ## 4. Анализ рисков
@@ -254,18 +252,21 @@ text
 
 ---
 
-## Стек технологий
+## Стек
 
-| Слой           | Технология                                       |
-| -------------- | ------------------------------------------------ |
-| Frontend       | React 18, TypeScript, Vite                       |
-| Backend        | Python 3.11, FastAPI, SQLAlchemy 2.0, asyncpg    |
-| ML             | Transformers (BERT/RoBERTa), rule-based fallback |
-| База данных    | PostgreSQL 16                                    |
-| Почта          | IMAP (aioimaplib), SMTP (aiosmtplib)             |
-| Инфраструктура | Docker, docker-compose, nginx                    |
+### Frontend
+- **React 18** — UI-библиотека
+- **TypeScript** — типизация
+- **Vite** — сборщик (быстрый dev-сервер, HMR)
+- **Lucide React** — иконки (легковесная библиотека, tree-shakeable)
+- **SheetJS (xlsx)** — экспорт таблиц в XLSX
 
----
+### Backend
+
+### Database
+
+### ML
+
 
 ## Быстрый старт
 
