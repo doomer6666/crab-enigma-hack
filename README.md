@@ -253,13 +253,14 @@ Frontend (React)
 ---
 
 ## Стек
+
 ### Frontend
 - **React 18** — UI-библиотека
 - **TypeScript** — типизация
 - **Vite** — сборщик (быстрый dev-сервер, HMR)
 - **Lucide React** — иконки (легковесная библиотека, tree-shakeable)
 - **SheetJS (xlsx)** — экспорт таблиц в XLSX
-- Никаких UI-фреймворков — весь CSS написан вручную под тёмную тему JARVIS
+
 ### Backend
 
 ### Database
