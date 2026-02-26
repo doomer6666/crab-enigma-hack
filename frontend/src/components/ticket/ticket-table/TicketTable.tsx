@@ -8,11 +8,29 @@ import {
   Meh,
   Frown,
 } from "lucide-react";
-import "./TicketTable.css";
-import { api } from "../../../services/api";
 import type { Ticket, TicketListResponse, TicketFilters } from "../../../types";
-import { PriorityBadge } from "../../badges/PriorityBadge";
+import { api } from "../../../services/api";
 import { StatusBadge } from "../../badges/StatusBadge";
+import { PriorityBadge } from "../../badges/PriorityBadge";
+import "./TicketTable.css";
+import { CustomSelect } from "../../ui/custom-select/CustomSelect";
+
+const STATUS_OPTIONS = [
+  { value: "", label: "Все статусы" },
+  { value: "new", label: "Новые" },
+  { value: "ai_processed", label: "AI обработан" },
+  { value: "in_progress", label: "В работе" },
+  { value: "resolved", label: "Решённые" },
+  { value: "closed", label: "Закрытые" },
+];
+
+const PRIORITY_OPTIONS = [
+  { value: "", label: "Все приоритеты" },
+  { value: "critical", label: "Критический" },
+  { value: "high", label: "Высокий" },
+  { value: "medium", label: "Средний" },
+  { value: "low", label: "Низкий" },
+];
 
 interface Props {
   onSelectTicket: (ticket: Ticket) => void;
@@ -110,29 +128,18 @@ export const TicketTable: React.FC<Props> = ({
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <select
-            className="filter-select"
+          <CustomSelect
+            options={STATUS_OPTIONS}
             value={filters.status || ""}
-            onChange={(e) => updateFilter("status", e.target.value)}
-          >
-            <option value="">Все статусы</option>
-            <option value="new">Новые</option>
-            <option value="ai_processed">AI обработан</option>
-            <option value="in_progress">В работе</option>
-            <option value="resolved">Решённые</option>
-            <option value="closed">Закрытые</option>
-          </select>
-          <select
-            className="filter-select"
+            onChange={(v) => updateFilter("status", v)}
+            placeholder="Все статусы"
+          />
+          <CustomSelect
+            options={PRIORITY_OPTIONS}
             value={filters.priority || ""}
-            onChange={(e) => updateFilter("priority", e.target.value)}
-          >
-            <option value="">Все приоритеты</option>
-            <option value="critical">Критический</option>
-            <option value="high">Высокий</option>
-            <option value="medium">Средний</option>
-            <option value="low">Низкий</option>
-          </select>
+            onChange={(v) => updateFilter("priority", v)}
+            placeholder="Все приоритеты"
+          />
         </div>
         <div className="toolbar-actions">
           <button className="btn btn-ghost" onClick={handleRefresh}>
@@ -153,7 +160,7 @@ export const TicketTable: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table — без изменений */}
       <div className="table-container">
         <table className="tickets-table">
           <thead>
