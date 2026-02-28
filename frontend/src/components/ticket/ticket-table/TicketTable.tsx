@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Search,
   RefreshCw,
@@ -10,29 +10,23 @@ import {
   ArrowUp,
   ArrowDown,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
-import type { Ticket, TicketListResponse, TicketFilters } from "../../../types";
+import type { Ticket, TicketFilters } from "../../../types";
 import { api } from "../../../services/api";
+import { useTickets } from "../../../services/queries";
 import { StatusBadge } from "../../badges/StatusBadge";
 import "./TicketTable.css";
 import { CustomSelect } from "../../ui/custom-select/CustomSelect";
-import type { FilterType } from "../../dashboard/stats-cards/StatsCards";
 
-// Расширяем опции селекта, чтобы в нем можно было выбрать Активные и Негатив
 const STATUS_OPTIONS = [
   { value: "", label: "Все статусы" },
   { value: "active", label: "Активные" },
   { value: "new", label: "Новые" },
   { value: "in_progress", label: "В работе" },
   { value: "resolved", label: "Решенные" },
-  { value: "sentiment:negative", label: "Негативные" }, // Хак для селекта
+  { value: "sentiment:negative", label: "Негативные" },
 ];
-
-interface Props {
-  onSelectTicket: (ticket: Ticket) => void;
-  selectedId?: number;
-  externalFilter?: FilterType | null;
-}
 
 const SENTIMENT_ICONS: Record<string, React.ReactNode> = {
   positive: <Smile size={18} className="sentiment-positive" />,
@@ -40,143 +34,59 @@ const SENTIMENT_ICONS: Record<string, React.ReactNode> = {
   negative: <Frown size={18} className="sentiment-negative" />,
 };
 
+interface Props {
+  onSelectTicket: (ticket: Ticket) => void;
+  selectedId?: number;
+  filters: TicketFilters;
+  onFiltersChange: React.Dispatch<React.SetStateAction<TicketFilters>>;
+}
+
 export const TicketTable: React.FC<Props> = ({
   onSelectTicket,
   selectedId,
-  externalFilter,
+  filters,
+  onFiltersChange,
 }) => {
-  const [data, setData] = useState<TicketListResponse>({ items: [], total: 0 });
-  const [filters, setFilters] = useState<TicketFilters>({
-    page: 1,
-    size: 20,
-    sortBy: "created_at",
-    sortDir: "desc",
-    status: "",
-    sentiment: "",
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedSearch(search), 500);
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  const { data, isLoading, isError, refetch, isFetching } = useTickets({
+    ...filters,
+    search: debouncedSearch,
   });
 
-  // Состояние для селекта (визуальное отображение)
-  const [selectValue, setSelectValue] = useState("");
+  const getSelectValue = () => {
+    if (filters.sentiment === "negative") return "sentiment:negative";
+    if (filters.status) return filters.status;
+    return "";
+  };
 
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const filtersRef = useRef(filters);
-  const searchRef = useRef(search);
-
-  // Реакция на изменение внешнего фильтра (клик по дашборду)
-  useEffect(() => {
-    if (externalFilter) {
-      // Обновляем селект
-      if (externalFilter.type === "status") {
-        setSelectValue(externalFilter.value);
-      } else if (
-        externalFilter.type === "sentiment" &&
-        externalFilter.value === "negative"
-      ) {
-        setSelectValue("sentiment:negative");
-      } else if (
-        externalFilter.type === "all" &&
-        externalFilter.value === "active"
-      ) {
-        setSelectValue("active");
-      } else {
-        setSelectValue("");
-      }
-
-      setFilters((prev) => {
-        const newFilters = { ...prev, page: 1 };
-
-        if (externalFilter.type === "status") {
-          newFilters.status = externalFilter.value;
-          newFilters.sentiment = "";
-        } else if (externalFilter.type === "sentiment") {
-          newFilters.sentiment = externalFilter.value;
-          newFilters.status = "";
-        } else if (externalFilter.type === "all") {
-          // Если "active", то передаем статус "active" (API должен его обработать как != resolved)
-          // Если просто сброс (""), то пусто
-          newFilters.status = externalFilter.value;
-          newFilters.sentiment = "";
-        }
-
-        return newFilters;
-      });
-    }
-  }, [externalFilter]);
-
-  // Обработка выбора в селекте вручную
   const handleSelectChange = (value: string) => {
-    setSelectValue(value);
-
-    setFilters((prev) => {
+    onFiltersChange((prev) => {
       const newFilters = { ...prev, page: 1 };
-
       if (value === "sentiment:negative") {
         newFilters.status = "";
         newFilters.sentiment = "negative";
       } else {
-        newFilters.status = value; // "active", "new", "resolved", ""
+        newFilters.status = value;
         newFilters.sentiment = "";
       }
       return newFilters;
     });
   };
 
-  useEffect(() => {
-    filtersRef.current = filters;
-    searchRef.current = search;
-  }, [filters, search]);
-
-  const loadData = useCallback(
-    async (isRefreshBtn = false) => {
-      if (isRefreshBtn) setRefreshing(true);
-      else setLoading(true);
-
-      try {
-        const result = await api.getTickets({
-          ...filters,
-          search: search || undefined,
-        });
-        setData(result);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [filters, search],
-  );
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      api
-        .getTickets({
-          ...filtersRef.current,
-          search: searchRef.current || undefined,
-        })
-        .then(setData)
-        .catch(console.error);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleRefreshClick = () => {
-    loadData(true);
-  };
-
   const handleSort = (field: string) => {
-    setFilters((prev) => {
-      const isSameField = prev.sortBy === field;
-      const newDir = isSameField && prev.sortDir === "desc" ? "asc" : "desc";
-      return { ...prev, sortBy: field, sortDir: newDir };
-    });
+    onFiltersChange((prev) => ({
+      ...prev,
+      sortBy: field,
+      sortDir:
+        prev.sortBy === field && prev.sortDir === "desc" ? "asc" : "desc",
+    }));
   };
 
   const renderSortIcon = (field: string) => {
@@ -190,13 +100,13 @@ export const TicketTable: React.FC<Props> = ({
 
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return "-";
-    return new Date(dateStr).toLocaleDateString("ru-RU", {
+    return new Intl.DateTimeFormat("ru-RU", {
       day: "2-digit",
       month: "2-digit",
       year: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
-    });
+    }).format(new Date(dateStr));
   };
 
   return (
@@ -208,14 +118,14 @@ export const TicketTable: React.FC<Props> = ({
             <input
               className="search-input"
               type="text"
-              placeholder="Поиск по ФИО, объекту, email, номерам..."
+              placeholder="Поиск по ФИО, объекту, email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <CustomSelect
             options={STATUS_OPTIONS}
-            value={selectValue}
+            value={getSelectValue()}
             onChange={handleSelectChange}
             placeholder="Все статусы"
           />
@@ -223,10 +133,10 @@ export const TicketTable: React.FC<Props> = ({
         <div className="toolbar-actions">
           <button
             className="btn btn-ghost"
-            onClick={handleRefreshClick}
-            disabled={refreshing}
+            onClick={() => refetch()}
+            disabled={isFetching}
           >
-            {refreshing ? (
+            {isFetching ? (
               <Loader2 size={14} className="spin" />
             ) : (
               <RefreshCw size={14} />
@@ -272,22 +182,37 @@ export const TicketTable: React.FC<Props> = ({
             </tr>
           </thead>
           <tbody>
-            {loading && (
+            {isLoading && (
               <tr>
                 <td colSpan={8} className="table-empty">
-                  <div className="loading-spinner" /> Загрузка...
+                  <div className="loading-spinner" /> Загрузка данных...
                 </td>
               </tr>
             )}
-            {!loading && data.items.length === 0 && (
+            {isError && (
+              <tr>
+                <td
+                  colSpan={8}
+                  className="table-empty"
+                  style={{ color: "var(--danger)" }}
+                >
+                  <AlertCircle
+                    size={16}
+                    style={{ verticalAlign: "middle", marginRight: 8 }}
+                  />
+                  Ошибка загрузки данных
+                </td>
+              </tr>
+            )}
+            {!isLoading && !isError && data?.items.length === 0 && (
               <tr>
                 <td colSpan={8} className="table-empty">
                   Обращения не найдены
                 </td>
               </tr>
             )}
-            {!loading &&
-              data.items.map((ticket) => (
+            {!isLoading &&
+              data?.items.map((ticket) => (
                 <tr
                   key={ticket.id}
                   className={`ticket-row ${selectedId === ticket.id ? "selected" : ""} ${ticket.status === "new" ? "row-new" : ""}`}
@@ -331,10 +256,9 @@ export const TicketTable: React.FC<Props> = ({
           </tbody>
         </table>
       </div>
-
       <div className="table-footer">
         <span className="results-count">
-          Показано {data.items.length} из {data.total}
+          {data ? `Показано ${data.items.length} из ${data.total}` : "..."}
         </span>
       </div>
     </div>
