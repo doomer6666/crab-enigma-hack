@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from "react";
 import {
   X,
@@ -14,9 +13,7 @@ import {
   ChevronDown,
   ChevronUp,
   PenLine,
-  Bot,
   Loader2,
-  FileText,
 } from "lucide-react";
 import type { Ticket, Message } from "../../../types";
 import { api } from "../../../services/api";
@@ -39,10 +36,11 @@ export const TicketDetail: React.FC<Props> = ({
   const [editorOpen, setEditorOpen] = useState(true);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
+  const [resolving, setResolving] = useState(false);
   const [sent, setSent] = useState(false);
 
   const loading = loadedTicketId !== ticket.id;
-  const isFinished = ticket.status === "closed" || ticket.status === "resolved";
+  const isFinished = ticket.status === "resolved";
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -51,11 +49,20 @@ export const TicketDetail: React.FC<Props> = ({
     };
   }, []);
 
+  // Загрузка сообщений и авто-вставка черновика
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEditorOpen(true);
-    setReplyText("");
     setSent(false);
+
+    // Автоматическая вставка AI черновика при открытии
+    if (ticket.ai_draft) {
+      setReplyText(ticket.ai_draft);
+    } else {
+      setReplyText("");
+    }
+
     api
       .getMessages(ticket.id)
       .then((msgs) => {
@@ -68,7 +75,7 @@ export const TicketDetail: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [ticket.id]);
+  }, [ticket.id, ticket.ai_draft]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -82,16 +89,13 @@ export const TicketDetail: React.FC<Props> = ({
     api.getMessages(ticket.id).then(setMessages).catch(console.error);
   };
 
-  const handleUseAiDraft = () => {
-    if (ticket.ai_draft) setReplyText(ticket.ai_draft);
-  };
-
   const handleSend = async () => {
     if (!replyText.trim()) return;
     setSending(true);
     try {
       await api.sendReply(ticket.id, replyText);
       setSent(true);
+      setReplyText(""); // Очищаем после отправки
       refreshMessages();
       onTicketUpdated();
     } catch {
@@ -100,16 +104,22 @@ export const TicketDetail: React.FC<Props> = ({
     setSending(false);
   };
 
+  const handleResolve = async () => {
+    setResolving(true);
+    try {
+      await api.resolveTicket(ticket.id);
+      onTicketUpdated();
+      onClose(); // Закрываем окно после решения
+    } catch {
+      alert("Ошибка при закрытии тикета");
+    }
+    setResolving(false);
+  };
+
   const formatDateTime = (s?: string | null) => {
     if (!s) return "";
     return new Date(s).toLocaleString("ru-RU");
   };
-
-  // --- ЛОГИКА РАЗДЕЛЕНИЯ ---
-  // Первое сообщение - это тело тикета.
-  const firstMessage = messages.length > 0 ? messages[0] : null;
-  // Остальные - история.
-  const historyMessages = messages.length > 1 ? messages.slice(1) : [];
 
   return (
     <div className="detail-overlay" onClick={onClose}>
@@ -215,51 +225,19 @@ export const TicketDetail: React.FC<Props> = ({
                 </span>
               </div>
             </div>
-            {/* ТУТ: Было AI-описание, но теперь лучше показывать полное тело письма (первое сообщение) */}
           </div>
-
-          {/* НОВЫЙ БЛОК: ТЕЛО ОБРАЩЕНИЯ (Первое сообщение) */}
-          {firstMessage && (
-            <div
-              className="detail-meta"
-              style={{
-                background: "var(--bg-input)",
-                margin: "0 20px",
-                borderRadius: "var(--radius)",
-                border: "1px solid var(--border)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 8,
-                  color: "var(--accent)",
-                }}
-              >
-                <FileText size={14} />
-                <span style={{ fontSize: 12, fontWeight: 600 }}>
-                  Тело обращения
-                </span>
-              </div>
-              <div className="message-body" style={{ fontSize: 13 }}>
-                {firstMessage.body_text}
-              </div>
-            </div>
-          )}
 
           <div className="detail-messages">
             <div className="section-title">
               <MessageSquare size={16} />
-              История переписки ({historyMessages.length})
+              Переписка ({messages.length})
             </div>
             <div className="messages-list">
               {loading && <div className="messages-loading">Загрузка...</div>}
-              {!loading && historyMessages.length === 0 && (
-                <div className="messages-empty">Нет новых ответов</div>
+              {!loading && messages.length === 0 && (
+                <div className="messages-empty">Нет сообщений</div>
               )}
-              {historyMessages.map((msg) => (
+              {messages.map((msg) => (
                 <div key={msg.id} className={`message-bubble ${msg.direction}`}>
                   <div className="message-header">
                     <span className="message-direction">
@@ -288,7 +266,7 @@ export const TicketDetail: React.FC<Props> = ({
         {isFinished ? (
           <div className="detail-bottom-bar resolved-bar">
             <CheckCircle size={16} />
-            Обращение {ticket.status === "resolved" ? "решено" : "закрыто"}
+            Обращение решено
           </div>
         ) : (
           <div className={`detail-editor-panel ${editorOpen ? "open" : ""}`}>
@@ -305,57 +283,53 @@ export const TicketDetail: React.FC<Props> = ({
             </button>
             {editorOpen && (
               <div className="editor-content">
-                {sent ? (
-                  <div className="editor-sent-msg">
-                    <CheckCircle size={16} />
-                    Ответ отправлен на {ticket.sender_email}
-                  </div>
-                ) : (
-                  <>
-                    <div className="editor-actions-row">
-                      {ticket.ai_draft && (
-                        <button
-                          className="btn btn-ai"
-                          onClick={handleUseAiDraft}
-                        >
-                          <Bot size={13} /> Вставить AI-черновик
-                        </button>
-                      )}
-                      {ticket.ai_draft && !replyText && (
-                        <span className="ai-hint">
-                          AI подготовил черновик ответа
-                        </span>
-                      )}
-                    </div>
-                    <textarea
-                      className="editor-textarea"
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      rows={6}
-                      placeholder="Введите текст ответа..."
-                    />
-                    <div className="editor-footer">
-                      <span className="char-count">
-                        {replyText.length} символов
-                      </span>
-                      <button
-                        className="btn btn-primary"
-                        onClick={handleSend}
-                        disabled={sending || !replyText.trim()}
-                      >
-                        {sending ? (
-                          <>
-                            <Loader2 size={14} className="spin" /> Отправка...
-                          </>
-                        ) : (
-                          <>
-                            <Send size={14} /> Отправить
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </>
-                )}
+                <textarea
+                  className="editor-textarea"
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  rows={6}
+                  placeholder="Введите текст ответа..."
+                />
+                <div className="editor-footer">
+                  <button
+                    className="btn btn-resolve"
+                    onClick={handleResolve}
+                    disabled={resolving}
+                    style={{
+                      background: "rgba(16, 185, 129, 0.1)",
+                      color: "#10b981",
+                      border: "1px solid rgba(16, 185, 129, 0.3)",
+                      marginRight: "auto",
+                    }}
+                  >
+                    {resolving ? (
+                      <Loader2 size={14} className="spin" />
+                    ) : (
+                      <CheckCircle size={14} />
+                    )}
+                    Вопрос решен
+                  </button>
+
+                  <span className="char-count" style={{ marginRight: 12 }}>
+                    {replyText.length} символов
+                  </span>
+
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleSend}
+                    disabled={sending || !replyText.trim()}
+                  >
+                    {sending ? (
+                      <>
+                        <Loader2 size={14} className="spin" /> Отправка...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={14} /> Отправить
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable prefer-const */
 import type {
   Ticket,
@@ -15,7 +14,7 @@ const delay = (ms: number = 300) => new Promise((r) => setTimeout(r, ms));
 
 let tickets = mockTickets.map((t) => ({
   ...t,
-  status: t.status === ("closed" as any) ? "resolved" : t.status,
+  status: (t.status as string) === "closed" ? "resolved" : t.status,
 }));
 
 let messageStore = { ...mockMessages };
@@ -101,6 +100,18 @@ export const mockApi = {
     return { ...tickets[idx] };
   },
 
+  async resolveTicket(id: number): Promise<Ticket> {
+    await delay(200);
+    const idx = tickets.findIndex((t) => t.id === id);
+    if (idx === -1) throw new Error("Тикет не найден");
+    tickets[idx] = {
+      ...tickets[idx],
+      status: "resolved",
+      updated_at: new Date().toISOString(),
+    };
+    return { ...tickets[idx] };
+  },
+
   async getMessages(ticketId: number): Promise<Message[]> {
     await delay(200);
     return messageStore[ticketId] || [];
@@ -131,7 +142,7 @@ export const mockApi = {
 
     const idx = tickets.findIndex((t) => t.id === ticketId);
     if (idx !== -1) {
-      tickets[idx].status = "resolved";
+      tickets[idx].status = "awaiting_reply";
       tickets[idx].updated_at = new Date().toISOString();
     }
 

@@ -128,6 +128,16 @@ export const realApi = {
     return res.json();
   },
 
+  async resolveTicket(id: number): Promise<Ticket> {
+    const res = await fetch(`${BASE}/tickets/${id}/`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "resolved" }),
+    });
+    if (!res.ok) throw new Error(`Resolve ticket ${id} failed`);
+    return res.json();
+  },
+
   async getMessages(ticketId: number): Promise<Message[]> {
     try {
       const res = await fetch(`${BASE}/tickets/${ticketId}/messages/`, {
@@ -155,18 +165,6 @@ export const realApi = {
     } catch {
       /* ignore */
     }
-
-    try {
-      const res = await fetch(`${BASE}/tickets/${ticketId}/`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "resolved" }),
-      });
-      if (res.ok) return { success: true };
-    } catch {
-      /* ignore */
-    }
-
     return { success: false };
   },
 
