@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
-import type { TicketFilters, Ticket } from "../types"; // Импортируем Ticket
+import type { TicketFilters, Ticket } from "../types";
 
 // --- Queries ---
 
@@ -12,7 +12,6 @@ export const useTickets = (filters: TicketFilters) => {
   });
 };
 
-// ИСПРАВЛЕНО: Строгая типизация initialData
 export const useTicket = (id: number, initialData?: Ticket) => {
   return useQuery({
     queryKey: ["ticket", id],
@@ -46,13 +45,22 @@ export const useSendReply = () => {
     mutationFn: ({ ticketId, text }: { ticketId: number; text: string }) =>
       api.sendReply(ticketId, text),
     onSuccess: (_, variables) => {
-      // Инвалидируем кэш, чтобы данные обновились везде
+      // 1. Инвалидируем сообщения, чтобы подгрузить новое отправленное
       queryClient.invalidateQueries({
         queryKey: ["messages", variables.ticketId],
       });
-      queryClient.invalidateQueries({
-        queryKey: ["ticket", variables.ticketId],
-      });
+
+      // 2. ПРИНУДИТЕЛЬНО обновляем статус тикета в кэше UI, не дожидаясь рефетча
+      // Это решает проблему "статус не меняется визуально"
+      queryClient.setQueryData(
+        ["ticket", variables.ticketId],
+        (oldData: Ticket | undefined) => {
+          if (!oldData) return undefined;
+          return { ...oldData, status: "awaiting_reply" };
+        },
+      );
+
+      // 3. Инвалидируем общие списки, чтобы там тоже обновилось (в фоне)
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
@@ -65,7 +73,15 @@ export const useResolveTicket = () => {
   return useMutation({
     mutationFn: (ticketId: number) => api.resolveTicket(ticketId),
     onSuccess: (_, ticketId) => {
-      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      // Здесь тоже принудительно ставим resolved
+      queryClient.setQueryData(
+        ["ticket", ticketId],
+        (oldData: Ticket | undefined) => {
+          if (!oldData) return undefined;
+          return { ...oldData, status: "resolved" };
+        },
+      );
+
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },

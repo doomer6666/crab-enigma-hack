@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useForm, useWatch } from "react-hook-form"; // Criterion 4: Ready-made solutions
+import { useForm, useWatch } from "react-hook-form";
 import {
   X,
   Inbox,
@@ -23,7 +23,7 @@ import {
   useTicketMessages,
   useResolveTicket,
   useSendReply,
-} from "../../../services/queries"; // Criterion 3: Architecture
+} from "../../../services/queries";
 import "./TicketDetail.css";
 
 interface Props {
@@ -40,32 +40,28 @@ export const TicketDetail: React.FC<Props> = ({
   ticket: initialTicket,
   onClose,
 }) => {
-  // 1. Используем хук для получения "живых" данных тикета (чтобы статус обновлялся сам)
+  // Получаем "живые" данные. Благодаря setQueryData в хуке useSendReply,
+  // статус здесь обновится мгновенно после отправки.
   const { data: ticketData } = useTicket(initialTicket.id, initialTicket);
   const ticket = ticketData || initialTicket;
 
-  // 2. Загрузка сообщений через React Query
   const { data: messages = [], isLoading: loading } = useTicketMessages(
     ticket.id,
   );
 
-  // 3. Мутации (Отправка и Решение)
   const replyMutation = useSendReply();
   const resolveMutation = useResolveTicket();
 
   const [editorOpen, setEditorOpen] = useState(true);
   const isFinished = ticket.status === "resolved";
 
-  // 4. React Hook Form для управления формой ответа
   const { register, handleSubmit, setValue, control, reset } =
     useForm<FormValues>({
       defaultValues: { replyText: "" },
     });
 
-  // Следим за значением поля для блокировки кнопки
   const replyText = useWatch({ control, name: "replyText" });
 
-  // Эффект для блокировки скролла body
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -73,7 +69,6 @@ export const TicketDetail: React.FC<Props> = ({
     };
   }, []);
 
-  // Эффект для подстановки AI черновика
   useEffect(() => {
     if (ticket.ai_draft) {
       setValue("replyText", ticket.ai_draft);
@@ -82,7 +77,6 @@ export const TicketDetail: React.FC<Props> = ({
     }
   }, [ticket.id, ticket.ai_draft, setValue]);
 
-  // Закрытие по ESC
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -91,8 +85,6 @@ export const TicketDetail: React.FC<Props> = ({
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  // --- Handlers ---
-
   const onSendSubmit = (data: FormValues) => {
     if (!data.replyText.trim()) return;
 
@@ -100,8 +92,7 @@ export const TicketDetail: React.FC<Props> = ({
       { ticketId: ticket.id, text: data.replyText },
       {
         onSuccess: () => {
-          reset(); // Очищаем форму
-          // Сообщения и статус обновятся автоматически благодаря React Query
+          reset();
         },
         onError: () => alert("Ошибка отправки"),
       },
@@ -109,9 +100,7 @@ export const TicketDetail: React.FC<Props> = ({
   };
 
   const handleResolve = () => {
-    resolveMutation.mutate(ticket.id, {
-      // onSuccess можно добавить закрытие окна, если нужно: onClose()
-    });
+    resolveMutation.mutate(ticket.id);
   };
 
   const formatDateTime = (s?: string | null) => {
@@ -208,20 +197,7 @@ export const TicketDetail: React.FC<Props> = ({
                       : "Нейтральный"}
                 </span>
               </div>
-              <div className="meta-item">
-                <span className="meta-label">Уверенность</span>
-                <span className="meta-value confidence-bar">
-                  <span
-                    className="confidence-fill"
-                    style={{ width: `${(ticket.confidence || 0) * 100}%` }}
-                  />
-                  <span className="confidence-text">
-                    {ticket.confidence
-                      ? `${Math.round(ticket.confidence * 100)}%`
-                      : "-"}
-                  </span>
-                </span>
-              </div>
+              {/* Блок "Уверенность" УДАЛЕН */}
             </div>
           </div>
 
