@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { BarChart3 } from "lucide-react";
-import { AnalyticsCharts } from "../components/dashboard/AnalyticsCharts";
-import { StatsCards } from "../components/dashboard/stats-cards/StatsCards"; // Импортируем карточки
+import { AnalyticsCharts } from "../components/analytics-charts/AnalyticsCharts";
+import { StatsCards } from "../components/dashboard/stats-cards/StatsCards";
 import { api } from "../services/api";
 import type { DashboardStats } from "../types";
 
@@ -26,9 +26,7 @@ export const AnalyticsPage: React.FC = () => {
 
       {stats ? (
         <>
-          {/* Сначала карточки */}
           <StatsCards stats={stats} />
-          {/* Потом графики */}
           <AnalyticsCharts stats={stats} />
         </>
       ) : (

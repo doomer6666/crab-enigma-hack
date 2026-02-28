@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable prefer-const */
 import type {
   Ticket,
@@ -12,8 +13,11 @@ import * as XLSX from "xlsx";
 
 const delay = (ms: number = 300) => new Promise((r) => setTimeout(r, ms));
 
-// Копии данных для мутации в рантайме
-let tickets = [...mockTickets];
+let tickets = mockTickets.map((t) => ({
+  ...t,
+  status: t.status === ("closed" as any) ? "resolved" : t.status,
+}));
+
 let messageStore = { ...mockMessages };
 let nextMsgId = 100;
 
@@ -31,7 +35,7 @@ function ticketsToRows(data: Ticket[]) {
     Приоритет: t.priority,
     Статус: t.status,
     "AI уверенность": t.confidence ? `${Math.round(t.confidence * 100)}%` : "",
-    "Суть вопроса": t.description || t.subject,
+    "Суть вопроса": t.subject,
   }));
 }
 
@@ -67,8 +71,7 @@ export const mockApi = {
           (t.object_name || "").toLowerCase().includes(q) ||
           (t.serial_numbers || "").toLowerCase().includes(q) ||
           (t.device_type || "").toLowerCase().includes(q) ||
-          (t.phone || "").includes(q) ||
-          (t.description || "").toLowerCase().includes(q),
+          (t.phone || "").includes(q),
       );
     }
 
@@ -155,10 +158,15 @@ export const mockApi = {
 
     tickets.forEach((t) => {
       byStatus[t.status] = (byStatus[t.status] || 0) + 1;
-      byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
-      bySentiment[t.sentiment] = (bySentiment[t.sentiment] || 0) + 1;
+
       const catName = t.category || "Другое";
       byCategory[catName] = (byCategory[catName] || 0) + 1;
+
+      bySentiment[t.sentiment] = (bySentiment[t.sentiment] || 0) + 1;
+
+      if (t.status !== "resolved") {
+        byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
+      }
     });
 
     return {

@@ -17,10 +17,8 @@ import { CustomSelect } from "../../ui/custom-select/CustomSelect";
 const STATUS_OPTIONS = [
   { value: "", label: "Все статусы" },
   { value: "new", label: "Новые" },
-  { value: "ai_processed", label: "AI обработан" },
   { value: "in_progress", label: "В работе" },
   { value: "resolved", label: "Решенные" },
-  { value: "closed", label: "Закрытые" },
 ];
 
 interface Props {
@@ -141,6 +139,7 @@ export const TicketTable: React.FC<Props> = ({
           </button>
         </div>
       </div>
+
       <div className="table-container">
         <table className="tickets-table">
           <thead>
@@ -205,15 +204,14 @@ export const TicketTable: React.FC<Props> = ({
                   <StatusBadge status={ticket.status} />
                 </td>
                 <td className="td-description">
-                  <div className="description-text">
-                    {ticket.description || ticket.subject}
-                  </div>
+                  <div className="description-text">{ticket.subject}</div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
       <div className="table-footer">
         <span className="results-count">
           Показано {data.items.length} из {data.total}

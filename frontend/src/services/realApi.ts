@@ -25,7 +25,7 @@ function ticketsToRows(tickets: Ticket[]) {
     Приоритет: t.priority || "",
     Статус: t.status || "",
     "AI уверенность": t.confidence ? `${Math.round(t.confidence * 100)}%` : "",
-    "Суть вопроса": t.description || t.subject || "",
+    "Суть вопроса": t.subject || "",
   }));
 }
 
@@ -230,12 +230,14 @@ export const realApi = {
 
       tickets.forEach((t) => {
         if (t.status) byStatus[t.status] = (byStatus[t.status] || 0) + 1;
-        if (t.priority)
-          byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
         if (t.sentiment)
           bySentiment[t.sentiment] = (bySentiment[t.sentiment] || 0) + 1;
         const catName = t.category || "Другое";
         byCategory[catName] = (byCategory[catName] || 0) + 1;
+
+        if (t.status !== "resolved" && t.priority) {
+          byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
+        }
       });
 
       return { total, byStatus, byPriority, bySentiment, byCategory };
