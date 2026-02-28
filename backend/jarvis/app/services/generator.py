@@ -1,13 +1,17 @@
+from app.core.bert import embed_text
+import numpy as np
+
+
 def generate_reply(text: str, category: str, kb_context: list[str]):
 
     base = {
-        "auth": "Попробуйте сбросить пароль через форму восстановления.",
-        "billing": "Мы проверим транзакцию и свяжемся с вами.",
-        "technical": "Пожалуйста, уточните детали проблемы.",
-        "general": "Мы рассмотрим ваш вопрос."
+        "auth": "Ваш запрос связан с доступом к системе.",
+        "billing": "Ваш запрос касается финансовых операций.",
+        "technical": "Вы столкнулись с технической проблемой.",
+        "general": "Спасибо за обращение."
     }
 
-    kb = " ".join(kb_context)
+    kb = "\n".join(kb_context)
 
     return f"""
 Здравствуйте!
@@ -16,7 +20,10 @@ def generate_reply(text: str, category: str, kb_context: list[str]):
 
 {base.get(category, base['general'])}
 
+Рекомендуемое решение:
 {kb}
+
+Если проблема сохраняется — сообщите дополнительные детали.
 
 С уважением,
 Техподдержка

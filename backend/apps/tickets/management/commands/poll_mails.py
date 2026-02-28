@@ -1,57 +1,79 @@
 import time
 from django.core.management.base import BaseCommand
-from integrations.email_client import EmailService
-from tickets.models import Ticket, Message
 from django.utils import timezone
+from apps.integrations.email_client import EmailService
+from apps.integrations.ai_service import JarvisService
+from apps.tickets.models import Ticket, Message
 
 
 class Command(BaseCommand):
-    help = 'Запускает бесконечный цикл опроса почты'
+    help = 'Polls emails and processes them with Jarvis AI'
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.SUCCESS('Starting email polling service...'))
+        self.stdout.write("Starting Email Poller & Jarvis AI...")
 
-        service = EmailService()
+        email_service = EmailService()
 
         while True:
             try:
-                self.stdout.write("Checking for new emails...")
-                emails = service.fetch_unseen_emails()
+                # 1. Получаем письма
+                emails = email_service.fetch_unseen_emails()
 
                 if emails:
-                    self.stdout.write(self.style.SUCCESS(f"Found {len(emails)} new emails!"))
+                    self.stdout.write(f"Found {len(emails)} new emails.")
 
-                    for mail_data in emails:
-                        # Создаем тикет в БД
+                    for mail in emails:
+                        # 2. Сохраняем тикет (статус NEW)
                         ticket = Ticket.objects.create(
-                            subject=mail_data['subject'],
-                            sender_email=mail_data['sender_email'],
-                            sender_name=mail_data['sender_name'],
-                            raw_body=mail_data['body'],  # Сырое тело храним тут
-                            received_at=time.timezone.now(),  # Лучше брать дату из письма, но пока так
+                            subject=mail['subject'],
+                            sender_email=mail['sender_email'],
+                            sender_name=mail['sender_name'],
+                            raw_body=mail['body'],
+                            received_at=timezone.now(),
                             status=Ticket.Status.NEW
                         )
 
-                        # Сразу создаем первое входящее сообщение
+                        # Сохраняем сообщение
                         Message.objects.create(
                             ticket=ticket,
                             direction=Message.Direction.INBOUND,
-                            sender=mail_data['sender_email'],
-                            recipient=service.email_user,
-                            subject=mail_data['subject'],
-                            body_text=mail_data['body'],
+                            sender=mail['sender_email'],
+                            recipient=email_service.email_user,
+                            subject=mail['subject'],
+                            body_text=mail['body'],
                             sent_at=timezone.now()
                         )
-                        self.stdout.write(f"Created Ticket #{ticket.id}")
 
-                        # TODO: Здесь можно вызвать AI-сервис (Celery task или просто функцию)
-                        # process_ticket_with_ai(ticket.id)
+                        self.stdout.write(f"Processing Ticket #{ticket.id}...")
+
+                        # 3. ВЫЗЫВАЕМ JARVIS
+                        # Объединяем тему и тело для анализа
+                        full_text = f"{ticket.subject}\n\n{ticket.raw_body}"
+
+                        ai_result = JarvisService.process_ticket(full_text)
+
+                        if ai_result:
+                            # 4. Обновляем тикет данными от AI
+                            ticket.category = ai_result.get('category', 'Другое')
+                            ticket.priority = ai_result.get('priority', 'medium')
+                            ticket.sentiment = ai_result.get('sentiment', 'neutral')
+                            ticket.confidence = ai_result.get('confidence', 0.0)
+                            ticket.ai_draft = ai_result.get('ai_draft', '')
+
+                            # Меняем статус
+                            ticket.status = Ticket.Status.AI_PROCESSED
+                            ticket.save()
+
+                            self.stdout.write(self.style.SUCCESS(f"Ticket #{ticket.id} AI processed!"))
+                        else:
+                            self.stdout.write(self.style.WARNING(f"Jarvis failed on Ticket #{ticket.id}"))
 
                 else:
-                    self.stdout.write("No new emails.")
+                    # self.stdout.write("No emails...")
+                    pass
+
+                time.sleep(10)  # Пауза 10 сек
 
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Error: {e}"))
-
-            # Ждем 10 секунд перед следующей проверкой
-            time.sleep(10)
+                self.stdout.write(self.style.ERROR(f"Loop error: {e}"))
+                time.sleep(5)

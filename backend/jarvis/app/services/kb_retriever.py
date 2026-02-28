@@ -1,13 +1,42 @@
+from app.core.bert import embed_text
+import numpy as np
+
+# временная KB (потом заменится на postgres + pgvector)
+KB = [
+    {
+        "text": "Как сбросить пароль через форму восстановления",
+        "category": "auth"
+    },
+    {
+        "text": "Проверка транзакции при списании средств",
+        "category": "billing"
+    },
+    {
+        "text": "Перезапуск устройства для устранения ошибки",
+        "category": "technical"
+    }
+]
+
+# создаём embedding KB при старте
+KB_EMBEDDINGS = [embed_text(item["text"]) for item in KB]
+
+
+def cosine(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+
 def retrieve_answer(text: str) -> list[str]:
-    text_lower = text.lower()
+    try:
+        query_emb = embed_text(text)
 
-    if "пароль" in text_lower:
-        return ["Вы можете сбросить пароль через форму восстановления."]
+        scores = [
+            cosine(query_emb, kb_emb)
+            for kb_emb in KB_EMBEDDINGS
+        ]
 
-    if "оплата" in text_lower or "списали" in text_lower:
-        return ["Пожалуйста, уточните дату и сумму транзакции."]
+        best_idx = int(np.argmax(scores))
 
-    if "ошибка" in text_lower:
-        return ["Попробуйте перезапустить приложение и очистить кэш."]
+        return [KB[best_idx]["text"]]
 
-    return []
+    except Exception:
+        return []

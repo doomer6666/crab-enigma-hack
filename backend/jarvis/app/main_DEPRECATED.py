@@ -6,6 +6,7 @@ from app.services.kb_retriever import retrieve_context
 from app.services.fallback import fallback_classification, fallback_reply
 from app.core.config import settings
 
+
 app = FastAPI(title="Jarvis ML Service")
 
 
