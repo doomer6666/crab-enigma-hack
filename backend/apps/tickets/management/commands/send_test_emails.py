@@ -12,13 +12,15 @@ class Command(BaseCommand):
         self.stdout.write("🚀 Подготовка к отправке писем...")
 
         # 1. Берем настройки из Django settings (которые читают .env)
-        smtp_server = "smtp.gmail.com"
+        smtp_server = "smtp.mail.ru"
         smtp_port = 587
+        email_author = settings.EMAIL_TEST_USER
+        email_author_password = settings.EMAIL_TEST_PASSWORD
         email_user = settings.EMAIL_HOST_USER
         email_password = settings.EMAIL_HOST_PASSWORD
 
         # Проверка наличия данных
-        if not email_user or not email_password:
+        if not email_user or not email_password or not email_author or not email_author_password:
             self.stdout.write(self.style.ERROR(
                 "❌ ОШИБКА: Не найдены EMAIL_HOST_USER или EMAIL_HOST_PASSWORD в настройках.\n"
                 "Проверь файл .env внутри backend."
@@ -168,14 +170,14 @@ class Command(BaseCommand):
 
             with smtplib.SMTP(smtp_server, smtp_port) as server:
                 server.starttls()
-                server.login(email_user, email_password)
+                server.login(email_author, email_author_password)
                 self.stdout.write("✅ Авторизация успешна.")
 
                 for i, data in enumerate(dataset):
                     # Создаем письмо с кодировкой UTF-8
                     msg = MIMEText(data['body'], 'plain', 'utf-8')
                     msg['Subject'] = data['subject']
-                    msg['From'] = email_user
+                    msg['From'] = email_author
                     msg['To'] = email_user  # Шлем сами себе
 
                     server.send_message(msg)
