@@ -38,6 +38,7 @@ services:
       - "80:80"
     depends_on:
       - backend
+      - db
     volumes:
       - static_volume:/app/static
 
