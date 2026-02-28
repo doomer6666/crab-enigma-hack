@@ -146,9 +146,10 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
   };
 
   // === 3. Статусы ===
-  const statusLabels = ["Новые", "В работе", "Решено"];
+  const statusLabels = ["Новые", "Ожидает ответа", "В работе", "Решено"];
   const statusSeries = [
     stats.byStatus["new"] || 0,
+    stats.byStatus["awaiting_reply"] || 0,
     stats.byStatus["in_progress"] || 0,
     stats.byStatus["resolved"] || 0,
   ];
@@ -156,7 +157,8 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
     chart: { type: "donut", background: "transparent", parentHeightOffset: 0 },
     theme: { mode: "dark" },
     labels: statusLabels,
-    colors: [COLORS[4], COLORS[3], COLORS[2]],
+    // Добавлен 4-й цвет (синий) для "Решено" или "Ожидает"
+    colors: [COLORS[4], COLORS[5], COLORS[3], COLORS[2]], // Red, Blue, Orange, Green
     plotOptions: {
       pie: {
         customScale: 1,
@@ -247,7 +249,7 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
         </div>
       </div>
 
-      {/* 2. Загруженность (Вместо Приоритетов) */}
+      {/* 2. Загруженность (График как курс валют) */}
       <div className="chart-card">
         <h3 className="chart-title">Динамика загруженности</h3>
         <div style={chartContainerStyle}>
