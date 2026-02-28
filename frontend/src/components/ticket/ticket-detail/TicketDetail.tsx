@@ -23,6 +23,7 @@ import {
   useTicketMessages,
   useResolveTicket,
   useSendReply,
+  useUpdateTicket, // <--- ИМПОРТИРУЕМ НОВЫЙ ХУК
 } from "../../../services/queries";
 import "./TicketDetail.css";
 
@@ -40,8 +41,6 @@ export const TicketDetail: React.FC<Props> = ({
   ticket: initialTicket,
   onClose,
 }) => {
-  // Получаем "живые" данные. Благодаря setQueryData в хуке useSendReply,
-  // статус здесь обновится мгновенно после отправки.
   const { data: ticketData } = useTicket(initialTicket.id, initialTicket);
   const ticket = ticketData || initialTicket;
 
@@ -51,6 +50,7 @@ export const TicketDetail: React.FC<Props> = ({
 
   const replyMutation = useSendReply();
   const resolveMutation = useResolveTicket();
+  const updateMutation = useUpdateTicket(); // <--- Инициализируем
 
   const [editorOpen, setEditorOpen] = useState(true);
   const isFinished = ticket.status === "resolved";
@@ -62,6 +62,19 @@ export const TicketDetail: React.FC<Props> = ({
 
   const replyText = useWatch({ control, name: "replyText" });
 
+  // --- ЭФФЕКТ: АВТО-СМЕНА СТАТУСА НА "В РАБОТЕ" ---
+  useEffect(() => {
+    // Если тикет "Новый", и мы его открыли -> меняем на "В работе"
+    if (ticket.status === "new") {
+      updateMutation.mutate({
+        id: ticket.id,
+        updates: { status: "in_progress" },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticket.id, ticket.status]); // Зависимости важны
+
+  // Остальные эффекты...
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -185,6 +198,7 @@ export const TicketDetail: React.FC<Props> = ({
               </div>
               <div className="meta-item">
                 <span className="meta-label">Статус</span>
+                {/* Статус теперь обновится сам благодаря useEffect выше */}
                 <StatusBadge status={ticket.status} />
               </div>
               <div className="meta-item">
@@ -197,7 +211,6 @@ export const TicketDetail: React.FC<Props> = ({
                       : "Нейтральный"}
                 </span>
               </div>
-              {/* Блок "Уверенность" УДАЛЕН */}
             </div>
           </div>
 

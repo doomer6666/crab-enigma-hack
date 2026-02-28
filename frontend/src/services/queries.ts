@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { TicketFilters, Ticket } from "../types";
 
-// --- Queries ---
+// ... (Остальные хуки useTickets, useTicket, useStats, useTicketMessages остаются без изменений) ...
 
 export const useTickets = (filters: TicketFilters) => {
   return useQuery({
@@ -38,6 +38,24 @@ export const useTicketMessages = (ticketId: number) => {
 
 // --- Mutations ---
 
+// НОВЫЙ ХУК: Универсальное обновление тикета
+export const useUpdateTicket = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: number; updates: Partial<Ticket> }) =>
+      api.updateTicket(id, updates),
+    onSuccess: (updatedTicket) => {
+      // Обновляем данные в кэше конкретного тикета
+      queryClient.setQueryData(["ticket", updatedTicket.id], updatedTicket);
+
+      // Инвалидируем списки и статистику
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+    },
+  });
+};
+
 export const useSendReply = () => {
   const queryClient = useQueryClient();
 
@@ -45,22 +63,17 @@ export const useSendReply = () => {
     mutationFn: ({ ticketId, text }: { ticketId: number; text: string }) =>
       api.sendReply(ticketId, text),
     onSuccess: (_, variables) => {
-      // 1. Инвалидируем сообщения, чтобы подгрузить новое отправленное
       queryClient.invalidateQueries({
         queryKey: ["messages", variables.ticketId],
       });
 
-      // 2. ПРИНУДИТЕЛЬНО обновляем статус тикета в кэше UI, не дожидаясь рефетча
-      // Это решает проблему "статус не меняется визуально"
+      // Optimistic update for status
       queryClient.setQueryData(
         ["ticket", variables.ticketId],
-        (oldData: Ticket | undefined) => {
-          if (!oldData) return undefined;
-          return { ...oldData, status: "awaiting_reply" };
-        },
+        (old: Ticket | undefined) =>
+          old ? { ...old, status: "awaiting_reply" } : undefined,
       );
 
-      // 3. Инвалидируем общие списки, чтобы там тоже обновилось (в фоне)
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
@@ -73,15 +86,11 @@ export const useResolveTicket = () => {
   return useMutation({
     mutationFn: (ticketId: number) => api.resolveTicket(ticketId),
     onSuccess: (_, ticketId) => {
-      // Здесь тоже принудительно ставим resolved
       queryClient.setQueryData(
         ["ticket", ticketId],
-        (oldData: Ticket | undefined) => {
-          if (!oldData) return undefined;
-          return { ...oldData, status: "resolved" };
-        },
+        (old: Ticket | undefined) =>
+          old ? { ...old, status: "resolved" } : undefined,
       );
-
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
