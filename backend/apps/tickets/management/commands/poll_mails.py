@@ -58,6 +58,7 @@ class Command(BaseCommand):
                                 # 4. Обновляем тикет данными от AI
                                 # Используем getattr, чтобы не упасть, если поле None или отсутствует
 
+                                self.stdout.write(self.style.ERROR(f"Proccessed without errors"))
                                 # Основные поля
                                 ticket.category = getattr(ai_result, 'category', 'Другое') or 'Другое'
                                 ticket.sentiment = getattr(ai_result, 'sentiment', 'neutral') or 'neutral'
@@ -78,7 +79,7 @@ class Command(BaseCommand):
                                 if ai_sender_name:
                                     ticket.sender_name = ai_sender_name
 
-                                ticket.status = Ticket.Status.AI_PROCESSED
+                                ticket.status = Ticket.Status.AWAITING_REPLY
                                 ticket.save()
 
                                 self.stdout.write(self.style.SUCCESS(

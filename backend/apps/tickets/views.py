@@ -60,7 +60,7 @@ class TicketViewSet(viewsets.ModelViewSet):
         )
 
         # 3. Смена статуса (ТЕПЕРЬ НА ОЖИДАНИЕ ОТВЕТА)
-        ticket.status = Ticket.Status.AWAITING_REPLY
+        ticket.status = Ticket.Status.IN_PROGRESS
         ticket.save()
 
         return Response({'success': True})

@@ -5,9 +5,8 @@ from django.conf import settings
 class Ticket(models.Model):
     class Status(models.TextChoices):
         NEW = 'new', 'Новый'
-        AI_PROCESSED = 'ai_processed', 'Обработан AI'
         IN_PROGRESS = 'in_progress', 'В работе'
-        AWAITING_REPLY = 'awaiting_reply', 'Ожидает ответа'  # <--- Этот статус будем ставить
+        AWAITING_REPLY = 'awaiting_reply', 'Ожидает ответа'
         RESOLVED = 'resolved', 'Решён'
         CLOSED = 'closed', 'Закрыт'
 
