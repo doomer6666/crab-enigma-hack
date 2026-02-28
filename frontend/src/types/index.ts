@@ -21,6 +21,7 @@ export interface Ticket {
 
 export type TicketStatus =
   | "new"
+  | "ai_processed"
   | "in_progress"
   | "awaiting_reply"
   | "resolved";
@@ -67,4 +68,5 @@ export interface DashboardStats {
   byPriority: Record<string, number>;
   bySentiment: Record<string, number>;
   byCategory: Record<string, number>;
+  byDate: Record<string, number>;
 }

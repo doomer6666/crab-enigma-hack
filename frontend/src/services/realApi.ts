@@ -251,6 +251,7 @@ export const realApi = {
           byPriority: {},
           bySentiment: {},
           byCategory: {},
+          byDate: {},
         };
       }
 
@@ -263,6 +264,7 @@ export const realApi = {
       const byPriority: Record<string, number> = {};
       const bySentiment: Record<string, number> = {};
       const byCategory: Record<string, number> = {};
+      const byDate: Record<string, number> = {};
 
       tickets.forEach((t) => {
         if (t.status) byStatus[t.status] = (byStatus[t.status] || 0) + 1;
@@ -278,9 +280,12 @@ export const realApi = {
         ) {
           byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
         }
+
+        const dateKey = (t.received_at || t.created_at).split("T")[0];
+        byDate[dateKey] = (byDate[dateKey] || 0) + 1;
       });
 
-      return { total, byStatus, byPriority, bySentiment, byCategory };
+      return { total, byStatus, byPriority, bySentiment, byCategory, byDate };
     } catch {
       return {
         total: 0,
@@ -288,6 +293,7 @@ export const realApi = {
         byPriority: {},
         bySentiment: {},
         byCategory: {},
+        byDate: {},
       };
     }
   },

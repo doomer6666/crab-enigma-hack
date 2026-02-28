@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
 import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
 import type { DashboardStats } from "../../types";
 import "./AnalyticsCharts.css";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ReactApexChart = (Chart as any).default || Chart;
 
@@ -85,8 +87,66 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
     { name: "Обращений", data: categoriesSorted.map(([, v]) => v) },
   ];
 
-  // === 2. Статусы ===
-  const statusLabels = ["Новые", "AI Обработано", "В работе", "Решено"];
+  // === 2. Загруженность (График как курс валют) ===
+  const dateEntries = Object.entries(stats.byDate || {}).sort(
+    ([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime(),
+  );
+
+  const workloadSeries = [
+    {
+      name: "Поступило",
+      data: dateEntries.map(([, v]) => v),
+    },
+  ];
+
+  const workloadOptions: ApexOptions = {
+    chart: {
+      type: "area",
+      toolbar: { show: false },
+      background: "transparent",
+      parentHeightOffset: 0,
+      zoom: { enabled: false },
+    },
+    theme: { mode: "dark" },
+    colors: [COLORS[1]], // Фиолетовый
+    fill: {
+      type: "gradient",
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.7,
+        opacityTo: 0.1,
+        stops: [0, 90, 100],
+      },
+    },
+    stroke: {
+      curve: "smooth",
+      width: 3,
+    },
+    dataLabels: { enabled: false },
+    xaxis: {
+      categories: dateEntries.map(([date]) => {
+        const d = new Date(date);
+        return `${d.getDate()}.${d.getMonth() + 1}`;
+      }),
+      labels: { style: { colors: "#94a3b8", fontSize: "11px" } },
+      tooltip: { enabled: false },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      show: true,
+      labels: { style: { colors: "#94a3b8", fontSize: "11px" } },
+    },
+    grid: {
+      borderColor: "#2e3b52",
+      strokeDashArray: 4,
+      padding: { left: 10, right: 10, top: 0, bottom: 0 },
+    },
+    tooltip: { theme: "dark" },
+  };
+
+  // === 3. Статусы ===
+  const statusLabels = ["Новые", "В работе", "Решено"];
   const statusSeries = [
     stats.byStatus["new"] || 0,
     stats.byStatus["in_progress"] || 0,
@@ -96,7 +156,7 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
     chart: { type: "donut", background: "transparent", parentHeightOffset: 0 },
     theme: { mode: "dark" },
     labels: statusLabels,
-    colors: [COLORS[4], COLORS[1], COLORS[3], COLORS[2]],
+    colors: [COLORS[4], COLORS[3], COLORS[2]],
     plotOptions: {
       pie: {
         customScale: 1,
@@ -109,8 +169,6 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
               show: true,
               label: "Всего",
               color: "#e2e8f0",
-              fontSize: "14px",
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               formatter: (w: any) =>
                 w.globals.seriesTotals.reduce(
                   (a: number, b: number) => a + b,
@@ -130,38 +188,6 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
     },
     grid: { padding: { top: 0, bottom: 0, left: 0, right: 0 } },
   };
-
-  // === 3. Приоритеты ===
-  const priorityOrder = ["critical", "high", "medium", "low"];
-  const priorityLabels = ["Критич.", "Высокий", "Средний", "Низкий"];
-  const priorityValues = priorityOrder.map((key) => stats.byPriority[key] || 0);
-
-  const priorityOptions: ApexOptions = {
-    chart: {
-      type: "bar",
-      toolbar: { show: false },
-      background: "transparent",
-      parentHeightOffset: 0,
-    },
-    theme: { mode: "dark" },
-    plotOptions: {
-      bar: { borderRadius: 4, columnWidth: "55%", distributed: true },
-    },
-    colors: [COLORS[4], COLORS[3], COLORS[0], COLORS[2]],
-    dataLabels: { enabled: false },
-    xaxis: {
-      categories: priorityLabels,
-      labels: { style: { colors: "#94a3b8", fontSize: "11px" } },
-    },
-    yaxis: { show: false },
-    grid: {
-      show: false,
-      padding: { left: 0, right: 0, top: 0, bottom: 0 },
-    },
-    tooltip: { theme: "dark" },
-    legend: { show: false },
-  };
-  const prioritySeries = [{ name: "Активные", data: priorityValues }];
 
   // === 4. Тональность ===
   const sentimentSeries = [
@@ -221,14 +247,14 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
         </div>
       </div>
 
-      {/* 2. Приоритеты */}
+      {/* 2. Загруженность (Вместо Приоритетов) */}
       <div className="chart-card">
-        <h3 className="chart-title">Приоритет (активные)</h3>
+        <h3 className="chart-title">Динамика загруженности</h3>
         <div style={chartContainerStyle}>
           <ReactApexChart
-            options={priorityOptions}
-            series={prioritySeries}
-            type="bar"
+            options={workloadOptions}
+            series={workloadSeries}
+            type="area"
             height="100%"
             width="100%"
           />
