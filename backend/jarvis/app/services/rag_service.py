@@ -1,0 +1,151 @@
+import os
+import re
+import warnings
+from dotenv import load_dotenv
+# МЕНЯЕМ ЛОАДЕР
+from langchain_community.document_loaders import PDFPlumberLoader 
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_groq import ChatGroq
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+warnings.filterwarnings("ignore", category=UserWarning)
+load_dotenv()
+
+# --- ПУТИ ---
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.abspath(os.path.join(CURRENT_DIR, "../../jarvis_big_brother"))
+BACKEND_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", "..", ".."))
+PDF_DIR = os.path.join(BACKEND_DIR, "data", "manuals")
+DB_DIR = os.path.join(BACKEND_DIR, "data", "faiss_index")
+
+GROQ_API_KEY = ""
+
+class RagService:
+    def __init__(self):
+        print("--- Инициализация RagService ---")
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name=MODEL_PATH,
+            model_kwargs={'device': 'cpu'}
+        )
+        # Увеличиваем размер чанка для таблиц
+        self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=300)
+
+        if os.path.exists(DB_DIR) and len(os.listdir(DB_DIR)) > 0:
+            print("Загружаем FAISS...")
+            self.vector_db = FAISS.load_local(DB_DIR, self.embeddings, allow_dangerous_deserialization=True)
+        else:
+            print("Создаём новый индекс...")
+            self.vector_db = self._create_db()
+
+        self.llm = ChatGroq(temperature=0, groq_api_key=GROQ_API_KEY, model_name="llama-3.1-8b-instant")
+
+    def _create_db(self):
+        if not os.path.exists(PDF_DIR): return None
+        all_chunks = []
+        files = [f for f in os.listdir(PDF_DIR) if f.endswith('.pdf')]
+
+        for file_name in files:
+            try:
+                print(f"Глубокая обработка: {file_name}")
+                # PDFPlumber лучше держит структуру текста
+                loader = PDFPlumberLoader(os.path.join(PDF_DIR, file_name))
+                pages = loader.load()
+                
+                for page in pages:
+                    page.metadata = {"source": file_name, "page": page.metadata.get("page", 0)}
+                
+                chunks = self.text_splitter.split_documents(pages)
+                for chunk in chunks:
+                    chunk.page_content = f"passage: {chunk.page_content}"
+                    all_chunks.append(chunk)
+            except Exception as e:
+                print(f"Ошибка {file_name}: {e}")
+
+        if not all_chunks: return None
+        db = FAISS.from_documents(all_chunks, self.embeddings)
+        db.save_local(DB_DIR)
+        return db
+
+    def _route_to_file(self, device: str, all_files: list) -> str | None:
+        file_mapping = {str(i + 1): f for i, f in enumerate(all_files)}
+        files_str = "\n".join([f"{k}. {v}" for k, v in file_mapping.items()])
+        system_msg = "Ты — роутер техподдержки. Напиши только цифру самого подходящего файла или 0."
+        user_msg = f"Устройство: '{device}'\nФайлы:\n{files_str}"
+        try:
+            raw = self.llm.invoke([("system", system_msg), ("human", user_msg)]).content.strip()
+            match = re.search(r'\d+', raw)
+            return file_mapping.get(match.group()) if match else None
+        except: return None
+
+    def resolve_answer(self, entities: dict, mood: str) -> dict:
+        if not self.vector_db:
+            return {"answer": "База знаний пуста.", "sources": []}
+
+        device = entities.get('device', '').strip()
+        issue = entities.get('issue', '').strip()
+        all_files = [f for f in os.listdir(PDF_DIR) if f.endswith('.pdf')]
+        
+        selected_file = self._route_to_file(device, all_files)
+
+        # ШАГ 1: Позволяем LLM переформулировать запрос для лучшего поиска
+        search_prompt = f"Вопрос пользователя: '{issue}'. Напиши 3-4 ключевых слова или фразы на русском, которые могут встретиться в технической инструкции для ответа на этот вопрос. Пиши только слова через пробел."
+        search_query_refined = self.llm.invoke(search_prompt).content.strip()
+        
+        # КРИТИЧЕСКИ ВАЖНО: используем расширенный запрос
+        final_query = f"query: {issue} {search_query_refined}"
+        print(f"[DEBUG] Расширенный запрос: {final_query}")
+
+        # ШАГ 2: Ищем больше чанков (k=15), чтобы дать LLM пространство для маневра
+        docs_with_scores = self.vector_db.similarity_search_with_score(
+            final_query, 
+            k=15, 
+            filter={"source": selected_file} if selected_file else None
+        )
+        final_docs = [doc for doc, score in docs_with_scores]
+
+        if not final_docs:
+             # Если с фильтром ничего, пробуем без него
+             final_docs = self.vector_db.similarity_search(final_query, k=5)
+
+        # Собираем контекст
+        context_text = ""
+        for i, d in enumerate(final_docs):
+            content = d.page_content.replace("passage: ", "")
+            context_text += f"\n[Источник: {d.metadata.get('source')}, Стр: {d.metadata.get('page', 0)+1}]\n{content}\n"
+
+        # ШАГ 3: Финальный разбор LLM
+        system_msg = (
+            "Ты — ведущий эксперт техподдержки ЭРИС. Ты работаешь с технической документацией.\n"
+            "Твоя задача: найти ответ на вопрос в предоставленных отрывках текста.\n"
+            "ПРАВИЛА:\n"
+            "1. Если в тексте есть цифры, таблицы или списки — анализируй их.\n"
+            "2. Если ответ найден, дай его максимально подробно.\n"
+            "3. Если информации недостаточно для точного ответа, но есть косвенные указания (например, количество каналов связи), опиши их.\n"
+            "4. Пиши профессионально и вежливо."
+        )
+        
+        user_msg = f"Устройство: {device}\nВопрос: {issue}\n\nДОКУМЕНТАЦИЯ ДЛЯ АНАЛИЗА:\n{context_text}"
+        
+        response = self.llm.invoke([("system", system_msg), ("human", user_msg)])
+        
+        greeting = "Приносим искренние извинения за неудобства.\n\n" if mood == 'negative' else ""
+        
+        sources = []
+        seen = set()
+        for d in final_docs:
+            p = d.metadata.get('page', 0) + 1
+            if p not in seen:
+                sources.append({"file": d.metadata.get('source'), "page": p})
+                seen.add(p)
+
+        return {"answer": greeting + response.content, "sources": sources[:3]}
+
+# if __name__ == "__main__":
+#     service = RagService()
+#     test_entities = {
+#         "device": "Корректировочная станция Док ЭРИС-400",
+#         "issue": "Каковы условия транспортировки и хранения станции зимой?"
+#     }
+#     result = service.resolve_answer(test_entities, mood="negative")
+#     print("\n" + "="*60 + f"\nОТВЕТ:\n{result['answer']}\n" + "="*60)
