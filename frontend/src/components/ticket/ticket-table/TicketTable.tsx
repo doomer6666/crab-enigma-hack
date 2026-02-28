@@ -141,7 +141,6 @@ export const TicketTable: React.FC<Props> = ({
           </button>
         </div>
       </div>
-
       <div className="table-container">
         <table className="tickets-table">
           <thead>
@@ -195,9 +194,7 @@ export const TicketTable: React.FC<Props> = ({
                   </span>
                 </td>
                 <td>
-                  <span className="category-tag">
-                    {ticket.category?.name || "-"}
-                  </span>
+                  <span className="category-tag">{ticket.category || "-"}</span>
                 </td>
                 <td className="td-sentiment">
                   <span title={ticket.sentiment}>
@@ -217,7 +214,6 @@ export const TicketTable: React.FC<Props> = ({
           </tbody>
         </table>
       </div>
-
       <div className="table-footer">
         <span className="results-count">
           Показано {data.items.length} из {data.total}

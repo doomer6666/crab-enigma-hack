@@ -11,8 +11,6 @@ import * as XLSX from "xlsx";
 
 const BASE = "/api";
 
-// --- Утилиты ---
-
 function ticketsToRows(tickets: Ticket[]) {
   return tickets.map((t) => ({
     Дата: t.received_at ? new Date(t.received_at).toLocaleString("ru-RU") : "",
@@ -23,7 +21,7 @@ function ticketsToRows(tickets: Ticket[]) {
     "Заводские номера": t.serial_numbers || "",
     "Тип прибора": t.device_type || "",
     "Эмоциональный окрас": t.sentiment || "",
-    Категория: t.category?.name || "",
+    Категория: t.category || "",
     Приоритет: t.priority || "",
     Статус: t.status || "",
     "AI уверенность": t.confidence ? `${Math.round(t.confidence * 100)}%` : "",
@@ -76,8 +74,6 @@ function extractTotal(data: unknown): number {
 }
 
 let cachedTickets: Ticket[] = [];
-
-// --- API ---
 
 export const realApi = {
   async getTickets(filters: TicketFilters): Promise<TicketListResponse> {
@@ -149,7 +145,6 @@ export const realApi = {
     ticketId: number,
     bodyText: string,
   ): Promise<{ success: boolean }> {
-    // Вариант 1: POST /api/tickets/{id}/reply/
     try {
       const res = await fetch(`${BASE}/tickets/${ticketId}/reply/`, {
         method: "POST",
@@ -161,7 +156,6 @@ export const realApi = {
       /* ignore */
     }
 
-    // Вариант 2: PATCH статус
     try {
       const res = await fetch(`${BASE}/tickets/${ticketId}/`, {
         method: "PATCH",
@@ -198,7 +192,6 @@ export const realApi = {
   },
 
   async getStats(): Promise<DashboardStats> {
-    // Вариант 1: эндпоинт /api/stats/
     try {
       const res = await fetch(`${BASE}/stats/`, {
         headers: { "Content-Type": "application/json" },
@@ -211,7 +204,6 @@ export const realApi = {
       /* ignore */
     }
 
-    // Вариант 2: считаем из тикетов
     try {
       const res = await fetch(`${BASE}/tickets/?size=1000&page=1`, {
         headers: { "Content-Type": "application/json" },
@@ -242,7 +234,7 @@ export const realApi = {
           byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
         if (t.sentiment)
           bySentiment[t.sentiment] = (bySentiment[t.sentiment] || 0) + 1;
-        const catName = t.category?.name || "Другое";
+        const catName = t.category || "Другое";
         byCategory[catName] = (byCategory[catName] || 0) + 1;
       });
 

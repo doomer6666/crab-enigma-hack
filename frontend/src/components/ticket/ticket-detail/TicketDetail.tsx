@@ -16,6 +16,7 @@ import {
   PenLine,
   Bot,
   Loader2,
+  FileText,
 } from "lucide-react";
 import type { Ticket, Message } from "../../../types";
 import { api } from "../../../services/api";
@@ -104,6 +105,12 @@ export const TicketDetail: React.FC<Props> = ({
     return new Date(s).toLocaleString("ru-RU");
   };
 
+  // --- ЛОГИКА РАЗДЕЛЕНИЯ ---
+  // Первое сообщение - это тело тикета.
+  const firstMessage = messages.length > 0 ? messages[0] : null;
+  // Остальные - история.
+  const historyMessages = messages.length > 1 ? messages.slice(1) : [];
+
   return (
     <div className="detail-overlay" onClick={onClose}>
       <div className="detail-panel" onClick={(e) => e.stopPropagation()}>
@@ -176,7 +183,7 @@ export const TicketDetail: React.FC<Props> = ({
               <div className="meta-item">
                 <span className="meta-label">Категория</span>
                 <span className="meta-value">
-                  {ticket.category?.name || "Не определена"}
+                  {ticket.category || "Не определена"}
                 </span>
               </div>
               <div className="meta-item">
@@ -208,25 +215,51 @@ export const TicketDetail: React.FC<Props> = ({
                 </span>
               </div>
             </div>
-            {ticket.description && (
-              <div className="meta-description">
-                <span className="meta-label">Суть вопроса</span>
-                <p className="description-full">{ticket.description}</p>
-              </div>
-            )}
+            {/* ТУТ: Было AI-описание, но теперь лучше показывать полное тело письма (первое сообщение) */}
           </div>
+
+          {/* НОВЫЙ БЛОК: ТЕЛО ОБРАЩЕНИЯ (Первое сообщение) */}
+          {firstMessage && (
+            <div
+              className="detail-meta"
+              style={{
+                background: "var(--bg-input)",
+                margin: "0 20px",
+                borderRadius: "var(--radius)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 8,
+                  color: "var(--accent)",
+                }}
+              >
+                <FileText size={14} />
+                <span style={{ fontSize: 12, fontWeight: 600 }}>
+                  Тело обращения
+                </span>
+              </div>
+              <div className="message-body" style={{ fontSize: 13 }}>
+                {firstMessage.body_text}
+              </div>
+            </div>
+          )}
 
           <div className="detail-messages">
             <div className="section-title">
               <MessageSquare size={16} />
-              Переписка ({messages.length})
+              История переписки ({historyMessages.length})
             </div>
             <div className="messages-list">
               {loading && <div className="messages-loading">Загрузка...</div>}
-              {!loading && messages.length === 0 && (
-                <div className="messages-empty">Нет сообщений</div>
+              {!loading && historyMessages.length === 0 && (
+                <div className="messages-empty">Нет новых ответов</div>
               )}
-              {messages.map((msg) => (
+              {historyMessages.map((msg) => (
                 <div key={msg.id} className={`message-bubble ${msg.direction}`}>
                   <div className="message-header">
                     <span className="message-direction">

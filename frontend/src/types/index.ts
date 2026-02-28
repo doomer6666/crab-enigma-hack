@@ -1,40 +1,20 @@
-export interface Category {
-  id: number;
-  name: string;
-  description?: string;
-}
-
 export interface Ticket {
   id: number;
   subject: string;
-
-  // Отправитель
   sender_name: string;
   sender_email: string;
   phone: string | null;
-
-  // Объект / предприятие
   object_name: string | null;
-
-  // Оборудование
   serial_numbers: string | null;
   device_type: string | null;
-
-  // AI-классификация
-  category?: Category | null;
+  category?: string | null;
   priority: "low" | "medium" | "high" | "critical";
   sentiment: "positive" | "neutral" | "negative";
   confidence?: number | null;
-
-  // Суть вопроса (краткое описание от AI)
   description: string | null;
-
-  // Статус и ответ
   status: TicketStatus;
   ai_draft?: string | null;
   assigned_to?: number | null;
-
-  // Даты
   received_at?: string | null;
   created_at: string;
   updated_at: string;

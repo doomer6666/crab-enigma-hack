@@ -12,11 +12,10 @@ import * as XLSX from "xlsx";
 
 const delay = (ms: number = 300) => new Promise((r) => setTimeout(r, ms));
 
+// Копии данных для мутации в рантайме
 let tickets = [...mockTickets];
 let messageStore = { ...mockMessages };
 let nextMsgId = 100;
-
-// ─── Утилиты экспорта ───
 
 function ticketsToRows(data: Ticket[]) {
   return data.map((t) => ({
@@ -28,7 +27,7 @@ function ticketsToRows(data: Ticket[]) {
     "Заводские номера": t.serial_numbers || "",
     "Тип прибора": t.device_type || "",
     "Эмоциональный окрас": t.sentiment,
-    Категория: t.category?.name || "",
+    Категория: t.category || "",
     Приоритет: t.priority,
     Статус: t.status,
     "AI уверенность": t.confidence ? `${Math.round(t.confidence * 100)}%` : "",
@@ -46,8 +45,6 @@ function downloadBlob(blob: Blob, filename: string) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-
-// ─── API ───
 
 export const mockApi = {
   async getTickets(filters: TicketFilters): Promise<TicketListResponse> {
@@ -160,7 +157,7 @@ export const mockApi = {
       byStatus[t.status] = (byStatus[t.status] || 0) + 1;
       byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
       bySentiment[t.sentiment] = (bySentiment[t.sentiment] || 0) + 1;
-      const catName = t.category?.name || "Другое";
+      const catName = t.category || "Другое";
       byCategory[catName] = (byCategory[catName] || 0) + 1;
     });
 
@@ -173,20 +170,17 @@ export const mockApi = {
     };
   },
 
-  // ─── CSV экспорт ───
   exportCsv(): void {
     const rows = ticketsToRows(tickets);
     if (rows.length === 0) return;
 
     const headers = Object.keys(rows[0]);
     const csvLines = [
-      // BOM для корректного отображения кириллицы в Excel
       headers.join(";"),
       ...rows.map((row) =>
         headers
           .map((h) => {
             const val = String(row[h as keyof typeof row] ?? "");
-            // Экранируем кавычки и оборачиваем значения
             return `"${val.replace(/"/g, '""')}"`;
           })
           .join(";"),
@@ -200,13 +194,11 @@ export const mockApi = {
     downloadBlob(blob, `tickets_${new Date().toISOString().slice(0, 10)}.csv`);
   },
 
-  // ─── XLSX экспорт ───
   exportXlsx(): void {
     const rows = ticketsToRows(tickets);
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
 
-    // Автоширина колонок
     const colWidths = Object.keys(rows[0] || {}).map((key) => {
       const maxLen = Math.max(
         key.length,
