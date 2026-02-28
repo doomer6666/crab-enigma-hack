@@ -7,7 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Ticket, Message
 from .serializers import TicketSerializer, MessageSerializer
 from .pagination import StandardResultsSetPagination
-from apps.integrations.email_client import EmailService  # Импортируем наш сервис отправки
+from apps.integrations.email_client import EmailService
 
 
 class TicketViewSet(viewsets.ModelViewSet):
@@ -18,14 +18,13 @@ class TicketViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['status', 'priority']
 
-    # Обновленный список полей для поиска
+    # Убрали description
     search_fields = [
         'subject', 'sender_email', 'sender_name',
         'object_name', 'serial_numbers', 'device_type',
-        'phone', 'description'
+        'phone'
     ]
 
-    # GET /api/tickets/{id}/messages/
     @action(detail=True, methods=['get'])
     def messages(self, request, pk=None):
         ticket = self.get_object()
@@ -33,7 +32,6 @@ class TicketViewSet(viewsets.ModelViewSet):
         serializer = MessageSerializer(messages, many=True)
         return Response(serializer.data)
 
-    # POST /api/tickets/{id}/reply/
     @action(detail=True, methods=['post'])
     def reply(self, request, pk=None):
         ticket = self.get_object()
@@ -42,30 +40,27 @@ class TicketViewSet(viewsets.ModelViewSet):
         if not body_text:
             return Response({'success': False, 'detail': 'body_text is required'}, status=400)
 
-        # 1. Отправляем email через наш сервис
+        # 1. Отправка email
         email_service = EmailService()
-        email_sent = email_service.send_reply(
+        email_service.send_reply(
             to_email=ticket.sender_email,
             subject=ticket.subject,
             text=body_text
         )
 
-        # Даже если SMTP упал (email_sent=False), мы сохраняем факт попытки,
-        # но для хакатона можно считать, что всё ок.
-
-        # 2. Сохраняем сообщение в базу
+        # 2. Сохранение сообщения
         Message.objects.create(
             ticket=ticket,
             direction=Message.Direction.OUTBOUND,
-            sender=email_service.email_user,  # наш email из settings
+            sender=email_service.email_user,
             recipient=ticket.sender_email,
             subject=f"Re: {ticket.subject}",
             body_text=body_text,
             sent_at=timezone.now()
         )
 
-        # 3. Меняем статус тикета
-        ticket.status = Ticket.Status.RESOLVED
+        # 3. Смена статуса (ТЕПЕРЬ НА ОЖИДАНИЕ ОТВЕТА)
+        ticket.status = Ticket.Status.IN_PROGRESS
         ticket.save()
 
         return Response({'success': True})
