@@ -1,4 +1,4 @@
-/* --- Overlay --- */
+/* === Overlay === */
 .detail-overlay {
     position: fixed;
     top: 0;
@@ -12,7 +12,7 @@
     backdrop-filter: blur(4px);
 }
 
-/* --- Panel --- */
+/* === Panel === */
 .detail-panel {
     width: 720px;
     max-width: 95vw;
@@ -35,15 +35,15 @@
     }
 }
 
-/* --- Header --- */
+/* === Header (sticky top) === */
 .detail-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 16px 20px;
+    padding: 14px 20px;
     border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
     gap: 12px;
+    flex-shrink: 0;
 }
 
 .detail-title-row {
@@ -90,15 +90,17 @@
     color: var(--text-primary);
 }
 
-/* --- Meta sections --- */
+/* === Scrollable body === */
+.detail-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+/* === Meta sections === */
 .detail-meta {
     padding: 12px 20px;
     border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-}
-
-.detail-meta.compact {
-    padding: 8px 20px;
 }
 
 .meta-section-title {
@@ -175,7 +177,7 @@
     margin: 4px 0 0;
 }
 
-/* --- Confidence --- */
+/* === Confidence === */
 .confidence-bar {
     position: relative;
     width: 70px;
@@ -208,14 +210,9 @@
     color: var(--accent);
 }
 
-/* --- Messages (КЛЮЧЕВЫЕ ИЗМЕНЕНИЯ) --- */
+/* === Messages === */
 .detail-messages {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
     padding: 0;
-    overflow: hidden;
 }
 
 .section-title {
@@ -227,15 +224,15 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-shrink: 0;
-    border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 2;
 }
 
 .messages-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px 20px;
+    padding: 12px 20px 20px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -253,7 +250,6 @@
     padding: 12px 14px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
-    flex-shrink: 0;
 }
 
 .message-bubble.inbound {
@@ -298,27 +294,177 @@
 
 .message-body {
     font-size: 13px;
-    line-height: 1.6;
+    line-height: 1.7;
     white-space: pre-wrap;
     color: var(--text-primary);
     word-break: break-word;
 }
 
-/* --- Resolved --- */
-.detail-resolved {
+/* === Bottom bar (resolved) === */
+.detail-bottom-bar {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+}
+
+.resolved-bar {
     padding: 14px 20px;
     text-align: center;
     color: var(--success);
     font-size: 13px;
-    border-top: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    flex-shrink: 0;
+    background: var(--bg-secondary);
 }
 
-/* --- Адаптив для ноутбуков --- */
+/* === Editor panel (collapsible, pinned to bottom) === */
+.detail-editor-panel {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+    transition: max-height 0.3s ease;
+    max-height: 42px;
+    overflow: hidden;
+}
+
+.detail-editor-panel.open {
+    max-height: 400px;
+    overflow: hidden;
+}
+
+/* Toggle button */
+.editor-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.editor-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.editor-toggle-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sent-inline-badge {
+    font-size: 10px;
+    color: var(--success);
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+/* Editor content */
+.editor-content {
+    padding: 0 20px 16px;
+}
+
+.editor-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.btn-ai {
+    padding: 5px 12px;
+    background: rgba(168, 85, 247, 0.1);
+    color: #a855f7;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-ai:hover {
+    background: rgba(168, 85, 247, 0.2);
+}
+
+.ai-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.editor-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+    min-height: 80px;
+    max-height: 200px;
+}
+
+.editor-textarea:focus {
+    border-color: var(--accent-dim);
+}
+
+.editor-textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.editor-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.char-count {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.editor-sent-msg {
+    padding: 12px 0;
+    color: var(--success);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.spin {
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* === Laptop === */
 @media (max-height: 800px) {
     .detail-header {
         padding: 10px 16px;
@@ -328,17 +474,13 @@
         padding: 8px 16px;
     }
 
-    .detail-meta.compact {
-        padding: 6px 16px;
-    }
-
     .meta-section-title {
         font-size: 9px;
         margin-bottom: 4px;
     }
 
     .meta-grid {
-        gap: 4px 16px;
+        gap: 4px 14px;
     }
 
     .meta-value {
@@ -351,7 +493,7 @@
     }
 
     .messages-list {
-        padding: 8px 16px;
+        padding: 8px 16px 16px;
         gap: 8px;
     }
 
@@ -361,11 +503,33 @@
 
     .message-body {
         font-size: 12px;
-        line-height: 1.5;
+        line-height: 1.6;
     }
 
     .detail-subject {
         font-size: 13px;
+    }
+
+    .editor-toggle {
+        padding: 8px 16px;
+        font-size: 12px;
+    }
+
+    .editor-content {
+        padding: 0 16px 12px;
+    }
+
+    .editor-textarea {
+        font-size: 12px;
+        min-height: 60px;
+    }
+
+    .detail-editor-panel {
+        max-height: 38px;
+    }
+
+    .detail-editor-panel.open {
+        max-height: 350px;
     }
 }
 
