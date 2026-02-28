@@ -27,15 +27,8 @@ def process_email(text):
     resolver = ToneResolver()
     tone = resolver.resolve(text)
 
-    #kb = retrieve_answer(text, category)
-
-<<<<<<< HEAD
-    #reply = generate_reply(text, category, kb)
-=======
+    kb = retrieve_answer(text, category)
     reply = generate_reply(category, kb)
->>>>>>> origin/jarvis
-
-    reply = "Спасибо за ваше обращение. Мы уже работаем над решением вашей проблемы и свяжемся с вами в ближайшее время."
 
     return JarvisDataEntity(entities.get("name"),
                            entities.get("phone"),
