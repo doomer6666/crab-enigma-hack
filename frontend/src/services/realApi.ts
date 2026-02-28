@@ -78,13 +78,24 @@ let cachedTickets: Ticket[] = [];
 export const realApi = {
   async getTickets(filters: TicketFilters): Promise<TicketListResponse> {
     const params = new URLSearchParams();
+
+    // Статус (если "active", бэкенд должен уметь это обрабатывать или фильтровать != resolved)
+    // Либо здесь можно было бы слать status__ne=resolved, если бэк на Django Filter.
+    // Но предположим, бэк ждет просто 'status'.
     if (filters.status) params.set("status", filters.status);
+
     if (filters.priority) params.set("priority", filters.priority);
+
+    // ДОБАВЛЕНО: Сентимент
+    if (filters.sentiment) params.set("sentiment", filters.sentiment);
+
     if (filters.search) params.set("search", filters.search);
+
+    // Пагинация
     params.set("page", String(filters.page));
     params.set("size", String(filters.size));
 
-    // Передаем параметры сортировки
+    // ДОБАВЛЕНО: Сортировка
     if (filters.sortBy) params.set("sort_by", filters.sortBy);
     if (filters.sortDir) params.set("sort_dir", filters.sortDir);
 
@@ -98,10 +109,12 @@ export const realApi = {
       const items = extractArray<Ticket>(data);
       const total = extractTotal(data);
 
+      // Кэшируем для экспорта, если это "чистый" список
       if (
         !filters.status &&
         !filters.priority &&
         !filters.search &&
+        !filters.sentiment &&
         filters.page === 1
       ) {
         cachedTickets = items;
@@ -169,6 +182,19 @@ export const realApi = {
     } catch {
       /* ignore */
     }
+
+    try {
+      // Меняем статус на 'awaiting_reply' или 'in_progress' при ответе
+      const res = await fetch(`${BASE}/tickets/${ticketId}/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "awaiting_reply" }),
+      });
+      if (res.ok) return { success: true };
+    } catch {
+      /* ignore */
+    }
+
     return { success: false };
   },
 
@@ -206,6 +232,7 @@ export const realApi = {
       /* ignore */
     }
 
+    // Fallback: считаем из тикетов
     try {
       const res = await fetch(`${BASE}/tickets/?size=1000&page=1`, {
         headers: { "Content-Type": "application/json" },

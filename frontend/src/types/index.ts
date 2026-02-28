@@ -52,6 +52,7 @@ export interface KnowledgeArticle {
 
 export interface TicketFilters {
   status?: string;
+  sentiment?: string;
   priority?: string;
   search?: string;
   page: number;

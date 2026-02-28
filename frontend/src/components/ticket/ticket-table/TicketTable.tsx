@@ -9,23 +9,29 @@ import {
   Frown,
   ArrowUp,
   ArrowDown,
+  Loader2,
 } from "lucide-react";
 import type { Ticket, TicketListResponse, TicketFilters } from "../../../types";
 import { api } from "../../../services/api";
 import { StatusBadge } from "../../badges/StatusBadge";
 import "./TicketTable.css";
 import { CustomSelect } from "../../ui/custom-select/CustomSelect";
+import type { FilterType } from "../../dashboard/stats-cards/StatsCards";
 
+// Расширяем опции селекта, чтобы в нем можно было выбрать Активные и Негатив
 const STATUS_OPTIONS = [
   { value: "", label: "Все статусы" },
+  { value: "active", label: "Активные" },
   { value: "new", label: "Новые" },
   { value: "in_progress", label: "В работе" },
   { value: "resolved", label: "Решенные" },
+  { value: "sentiment:negative", label: "Негативные" }, // Хак для селекта
 ];
 
 interface Props {
   onSelectTicket: (ticket: Ticket) => void;
   selectedId?: number;
+  externalFilter?: FilterType | null;
 }
 
 const SENTIMENT_ICONS: Record<string, React.ReactNode> = {
@@ -37,43 +43,116 @@ const SENTIMENT_ICONS: Record<string, React.ReactNode> = {
 export const TicketTable: React.FC<Props> = ({
   onSelectTicket,
   selectedId,
+  externalFilter,
 }) => {
   const [data, setData] = useState<TicketListResponse>({ items: [], total: 0 });
   const [filters, setFilters] = useState<TicketFilters>({
     page: 1,
     size: 20,
-    sortBy: "created_at", // Сортировка по умолчанию
-    sortDir: "desc", // От новых к старым
+    sortBy: "created_at",
+    sortDir: "desc",
+    status: "",
+    sentiment: "",
   });
-  const [search, setSearch] = useState("");
-  const [loadedKey, setLoadedKey] = useState<string | null>(null);
 
-  const currentKey = JSON.stringify({ ...filters, search });
-  const loading = loadedKey !== currentKey;
+  // Состояние для селекта (визуальное отображение)
+  const [selectValue, setSelectValue] = useState("");
+
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const filtersRef = useRef(filters);
   const searchRef = useRef(search);
+
+  // Реакция на изменение внешнего фильтра (клик по дашборду)
+  useEffect(() => {
+    if (externalFilter) {
+      // Обновляем селект
+      if (externalFilter.type === "status") {
+        setSelectValue(externalFilter.value);
+      } else if (
+        externalFilter.type === "sentiment" &&
+        externalFilter.value === "negative"
+      ) {
+        setSelectValue("sentiment:negative");
+      } else if (
+        externalFilter.type === "all" &&
+        externalFilter.value === "active"
+      ) {
+        setSelectValue("active");
+      } else {
+        setSelectValue("");
+      }
+
+      setFilters((prev) => {
+        const newFilters = { ...prev, page: 1 };
+
+        if (externalFilter.type === "status") {
+          newFilters.status = externalFilter.value;
+          newFilters.sentiment = "";
+        } else if (externalFilter.type === "sentiment") {
+          newFilters.sentiment = externalFilter.value;
+          newFilters.status = "";
+        } else if (externalFilter.type === "all") {
+          // Если "active", то передаем статус "active" (API должен его обработать как != resolved)
+          // Если просто сброс (""), то пусто
+          newFilters.status = externalFilter.value;
+          newFilters.sentiment = "";
+        }
+
+        return newFilters;
+      });
+    }
+  }, [externalFilter]);
+
+  // Обработка выбора в селекте вручную
+  const handleSelectChange = (value: string) => {
+    setSelectValue(value);
+
+    setFilters((prev) => {
+      const newFilters = { ...prev, page: 1 };
+
+      if (value === "sentiment:negative") {
+        newFilters.status = "";
+        newFilters.sentiment = "negative";
+      } else {
+        newFilters.status = value; // "active", "new", "resolved", ""
+        newFilters.sentiment = "";
+      }
+      return newFilters;
+    });
+  };
 
   useEffect(() => {
     filtersRef.current = filters;
     searchRef.current = search;
   }, [filters, search]);
 
+  const loadData = useCallback(
+    async (isRefreshBtn = false) => {
+      if (isRefreshBtn) setRefreshing(true);
+      else setLoading(true);
+
+      try {
+        const result = await api.getTickets({
+          ...filters,
+          search: search || undefined,
+        });
+        setData(result);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [filters, search],
+  );
+
   useEffect(() => {
-    let cancelled = false;
-    api
-      .getTickets({ ...filters, search: search || undefined })
-      .then((result) => {
-        if (!cancelled) {
-          setData(result);
-          setLoadedKey(JSON.stringify({ ...filters, search }));
-        }
-      })
-      .catch(console.error);
-    return () => {
-      cancelled = true;
-    };
-  }, [filters, search]);
+    loadData();
+  }, [loadData]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -88,15 +167,8 @@ export const TicketTable: React.FC<Props> = ({
     return () => clearInterval(interval);
   }, []);
 
-  const handleRefresh = useCallback(() => {
-    api
-      .getTickets({ ...filters, search: search || undefined })
-      .then(setData)
-      .catch(console.error);
-  }, [filters, search]);
-
-  const updateFilter = (key: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value || undefined, page: 1 }));
+  const handleRefreshClick = () => {
+    loadData(true);
   };
 
   const handleSort = (field: string) => {
@@ -143,14 +215,23 @@ export const TicketTable: React.FC<Props> = ({
           </div>
           <CustomSelect
             options={STATUS_OPTIONS}
-            value={filters.status || ""}
-            onChange={(v) => updateFilter("status", v)}
+            value={selectValue}
+            onChange={handleSelectChange}
             placeholder="Все статусы"
           />
         </div>
         <div className="toolbar-actions">
-          <button className="btn btn-ghost" onClick={handleRefresh}>
-            <RefreshCw size={14} /> Обновить
+          <button
+            className="btn btn-ghost"
+            onClick={handleRefreshClick}
+            disabled={refreshing}
+          >
+            {refreshing ? (
+              <Loader2 size={14} className="spin" />
+            ) : (
+              <RefreshCw size={14} />
+            )}
+            Обновить
           </button>
           <button className="btn btn-secondary" onClick={() => api.exportCsv()}>
             <FileText size={14} /> CSV
@@ -177,7 +258,11 @@ export const TicketTable: React.FC<Props> = ({
               <th>Объект</th>
               <th>Тип прибора</th>
               <th>Категория</th>
-              <th>Окрас</th>
+              <th className="sortable" onClick={() => handleSort("sentiment")}>
+                <div className="th-content">
+                  Окрас {renderSortIcon("sentiment")}
+                </div>
+              </th>
               <th className="sortable" onClick={() => handleSort("status")}>
                 <div className="th-content">
                   Статус {renderSortIcon("status")}
@@ -187,7 +272,7 @@ export const TicketTable: React.FC<Props> = ({
             </tr>
           </thead>
           <tbody>
-            {loading && data.items.length === 0 && (
+            {loading && (
               <tr>
                 <td colSpan={8} className="table-empty">
                   <div className="loading-spinner" /> Загрузка...
@@ -201,45 +286,48 @@ export const TicketTable: React.FC<Props> = ({
                 </td>
               </tr>
             )}
-            {data.items.map((ticket) => (
-              <tr
-                key={ticket.id}
-                className={`ticket-row ${selectedId === ticket.id ? "selected" : ""} ${ticket.status === "new" ? "row-new" : ""}`}
-                onClick={() => onSelectTicket(ticket)}
-              >
-                <td className="td-date">
-                  {formatDate(ticket.received_at || ticket.created_at)}
-                </td>
-                <td>
-                  <div className="sender-name">{ticket.sender_name}</div>
-                  <div className="sender-email">{ticket.sender_email}</div>
-                </td>
-                <td>
-                  <span className="object-name">
-                    {ticket.object_name || "-"}
-                  </span>
-                </td>
-                <td>
-                  <span className="device-type">
-                    {ticket.device_type || "-"}
-                  </span>
-                </td>
-                <td>
-                  <span className="category-tag">{ticket.category || "-"}</span>
-                </td>
-                <td className="td-sentiment">
-                  <span title={ticket.sentiment}>
-                    {SENTIMENT_ICONS[ticket.sentiment] || <Meh size={18} />}
-                  </span>
-                </td>
-                <td>
-                  <StatusBadge status={ticket.status} />
-                </td>
-                <td className="td-description">
-                  <div className="description-text">{ticket.subject}</div>
-                </td>
-              </tr>
-            ))}
+            {!loading &&
+              data.items.map((ticket) => (
+                <tr
+                  key={ticket.id}
+                  className={`ticket-row ${selectedId === ticket.id ? "selected" : ""} ${ticket.status === "new" ? "row-new" : ""}`}
+                  onClick={() => onSelectTicket(ticket)}
+                >
+                  <td className="td-date">
+                    {formatDate(ticket.received_at || ticket.created_at)}
+                  </td>
+                  <td>
+                    <div className="sender-name">{ticket.sender_name}</div>
+                    <div className="sender-email">{ticket.sender_email}</div>
+                  </td>
+                  <td>
+                    <span className="object-name">
+                      {ticket.object_name || "-"}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="device-type">
+                      {ticket.device_type || "-"}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="category-tag">
+                      {ticket.category || "-"}
+                    </span>
+                  </td>
+                  <td className="td-sentiment">
+                    <span title={ticket.sentiment}>
+                      {SENTIMENT_ICONS[ticket.sentiment] || <Meh size={18} />}
+                    </span>
+                  </td>
+                  <td>
+                    <StatusBadge status={ticket.status} />
+                  </td>
+                  <td className="td-description">
+                    <div className="description-text">{ticket.subject}</div>
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>

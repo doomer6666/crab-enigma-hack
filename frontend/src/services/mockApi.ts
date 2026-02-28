@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable prefer-const */
 import type {
   Ticket,
@@ -12,10 +13,19 @@ import * as XLSX from "xlsx";
 
 const delay = (ms: number = 300) => new Promise((r) => setTimeout(r, ms));
 
-let tickets = mockTickets.map((t) => ({
-  ...t,
-  status: (t.status as string) === "closed" ? "resolved" : t.status,
-}));
+// Чистим данные при старте:
+// 1. closed -> resolved
+// 2. ai_processed -> new (как ты просил)
+let tickets = mockTickets.map((t) => {
+  let status = t.status as string;
+  if (status === "closed") status = "resolved";
+  if (status === "ai_processed") status = "new";
+
+  return {
+    ...t,
+    status: status as any, // Приводим к типу TicketStatus
+  };
+});
 
 let messageStore = { ...mockMessages };
 let nextMsgId = 100;
@@ -49,13 +59,11 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-// Веса статусов для сортировки
 const STATUS_WEIGHTS: Record<string, number> = {
   new: 0,
-  ai_processed: 1,
-  in_progress: 2,
-  awaiting_reply: 3,
-  resolved: 4,
+  in_progress: 1,
+  awaiting_reply: 2,
+  resolved: 3,
 };
 
 export const mockApi = {
@@ -63,13 +71,23 @@ export const mockApi = {
     await delay();
     let result = [...tickets];
 
-    // Фильтрация
     if (filters.status) {
-      result = result.filter((t) => t.status === filters.status);
+      if (filters.status === "active") {
+        // Активные = не решенные
+        result = result.filter((t) => t.status !== "resolved");
+      } else {
+        result = result.filter((t) => t.status === filters.status);
+      }
     }
+
     if (filters.priority) {
       result = result.filter((t) => t.priority === filters.priority);
     }
+
+    if (filters.sentiment) {
+      result = result.filter((t) => t.sentiment === filters.sentiment);
+    }
+
     if (filters.search) {
       const q = filters.search.toLowerCase();
       result = result.filter(
@@ -84,7 +102,6 @@ export const mockApi = {
       );
     }
 
-    // Сортировка
     if (filters.sortBy) {
       const field = filters.sortBy;
       const dir = filters.sortDir === "asc" ? 1 : -1;
@@ -102,10 +119,15 @@ export const mockApi = {
           return (dateA - dateB) * dir;
         }
 
-        // Дефолтная строковая сортировка (на будущее)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (field === "sentiment") {
+          const wA = a.sentiment || "";
+          const wB = b.sentiment || "";
+          if (wA < wB) return -1 * dir;
+          if (wA > wB) return 1 * dir;
+          return 0;
+        }
+
         const valA = (a as any)[field];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const valB = (b as any)[field];
         if (valA < valB) return -1 * dir;
         if (valA > valB) return 1 * dir;

@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from "react";
 import type { DashboardStats } from "../../types";
 import { api } from "../../services/api";
-import { StatsCards } from "./stats-cards/StatsCards";
+import { StatsCards, type FilterType } from "./stats-cards/StatsCards";
 
-export const Dashboard: React.FC = () => {
+interface Props {
+  onFilterChange?: (filter: FilterType) => void;
+}
+
+export const Dashboard: React.FC<Props> = ({ onFilterChange }) => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {
@@ -21,5 +25,5 @@ export const Dashboard: React.FC = () => {
 
   if (!stats) return null;
 
-  return <StatsCards stats={stats} />;
+  return <StatsCards stats={stats} onFilterSelect={onFilterChange} />;
 };
