@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   Ticket,
   TicketListResponse,
@@ -10,23 +11,23 @@ import * as XLSX from "xlsx";
 
 const BASE = "/api";
 
-// ─── Утилиты ───
+// --- Утилиты ---
 
 function ticketsToRows(tickets: Ticket[]) {
   return tickets.map((t) => ({
-    ID: t.id,
-    Тема: t.subject,
-    "Email отправителя": t.sender_email,
-    "Имя отправителя": t.sender_name || "",
+    Дата: t.received_at ? new Date(t.received_at).toLocaleString("ru-RU") : "",
+    ФИО: t.sender_name || "",
+    Объект: t.object_name || "",
+    Телефон: t.phone || "",
+    Email: t.sender_email,
+    "Заводские номера": t.serial_numbers || "",
+    "Тип прибора": t.device_type || "",
+    "Эмоциональный окрас": t.sentiment || "",
     Категория: t.category?.name || "",
-    Приоритет: t.priority,
-    Тональность: t.sentiment,
+    Приоритет: t.priority || "",
+    Статус: t.status || "",
     "AI уверенность": t.confidence ? `${Math.round(t.confidence * 100)}%` : "",
-    Статус: t.status,
-    "Дата получения": t.received_at
-      ? new Date(t.received_at).toLocaleString("ru-RU")
-      : "",
-    "Дата создания": new Date(t.created_at).toLocaleString("ru-RU"),
+    "Суть вопроса": t.description || t.subject || "",
   }));
 }
 
@@ -52,13 +53,6 @@ function transformTags(tags: unknown): string[] {
   return [];
 }
 
-/**
- * Безопасно извлекает массив из ответа Django.
- * Django DRF может вернуть:
- *   - массив напрямую: [...]
- *   - пагинированный объект: { count, results: [...] }
- *   - объект с другим ключом: { items: [...] }
- */
 function extractArray<T>(data: unknown): T[] {
   if (Array.isArray(data)) return data;
   if (data && typeof data === "object") {
@@ -70,9 +64,6 @@ function extractArray<T>(data: unknown): T[] {
   return [];
 }
 
-/**
- * Безопасно извлекает total count из ответа Django.
- */
 function extractTotal(data: unknown): number {
   if (Array.isArray(data)) return data.length;
   if (data && typeof data === "object") {
@@ -84,10 +75,9 @@ function extractTotal(data: unknown): number {
   return 0;
 }
 
-// Кэш для экспорта и статистики
 let cachedTickets: Ticket[] = [];
 
-// ─── API ───
+// --- API ---
 
 export const realApi = {
   async getTickets(filters: TicketFilters): Promise<TicketListResponse> {
@@ -98,30 +88,30 @@ export const realApi = {
     params.set("page", String(filters.page));
     params.set("size", String(filters.size));
 
-    const res = await fetch(`${BASE}/tickets/?${params}`, {
-      headers: { "Content-Type": "application/json" },
-    });
+    try {
+      const res = await fetch(`${BASE}/tickets/?${params}`, {
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) return { items: [], total: 0 };
 
-    if (!res.ok) {
-      console.error("getTickets failed:", res.status);
+      const data = await res.json();
+      const items = extractArray<Ticket>(data);
+      const total = extractTotal(data);
+
+      if (
+        !filters.status &&
+        !filters.priority &&
+        !filters.search &&
+        filters.page === 1
+      ) {
+        cachedTickets = items;
+      }
+
+      return { items, total };
+    } catch (e) {
+      console.error("getTickets error:", e);
       return { items: [], total: 0 };
     }
-
-    const data = await res.json();
-    const items = extractArray<Ticket>(data);
-    const total = extractTotal(data);
-
-    // Кэш для экспорта
-    if (
-      !filters.status &&
-      !filters.priority &&
-      !filters.search &&
-      filters.page === 1
-    ) {
-      cachedTickets = items;
-    }
-
-    return { items, total };
   },
 
   async getTicket(id: number): Promise<Ticket> {
@@ -147,16 +137,10 @@ export const realApi = {
       const res = await fetch(`${BASE}/tickets/${ticketId}/messages/`, {
         headers: { "Content-Type": "application/json" },
       });
-
-      if (!res.ok) {
-        console.warn("getMessages failed:", res.status);
-        return [];
-      }
-
+      if (!res.ok) return [];
       const data = await res.json();
       return extractArray<Message>(data);
-    } catch (e) {
-      console.warn("getMessages error:", e);
+    } catch {
       return [];
     }
   },
@@ -165,7 +149,7 @@ export const realApi = {
     ticketId: number,
     bodyText: string,
   ): Promise<{ success: boolean }> {
-    // Попытка 1: POST /api/tickets/{id}/reply/
+    // Вариант 1: POST /api/tickets/{id}/reply/
     try {
       const res = await fetch(`${BASE}/tickets/${ticketId}/reply/`, {
         method: "POST",
@@ -174,10 +158,10 @@ export const realApi = {
       });
       if (res.ok) return { success: true };
     } catch {
-      // ignore
+      /* ignore */
     }
 
-    // Попытка 2: PATCH статус на resolved
+    // Вариант 2: PATCH статус
     try {
       const res = await fetch(`${BASE}/tickets/${ticketId}/`, {
         method: "PATCH",
@@ -186,7 +170,7 @@ export const realApi = {
       });
       if (res.ok) return { success: true };
     } catch {
-      // ignore
+      /* ignore */
     }
 
     return { success: false };
@@ -198,31 +182,24 @@ export const realApi = {
         `${BASE}/knowledge/?search=${encodeURIComponent(query)}`,
         { headers: { "Content-Type": "application/json" } },
       );
-
-      if (!res.ok) {
-        console.warn("searchKnowledge failed:", res.status);
-        return [];
-      }
-
+      if (!res.ok) return [];
       const data = await res.json();
-      const rawArticles = extractArray<any>(data);
-
-      return rawArticles.map((a: any) => ({
+      const raw = extractArray<any>(data);
+      return raw.map((a: any) => ({
         id: a.id,
         title: a.title,
         content: a.content,
         category_id: a.category_id ?? null,
         tags: transformTags(a.tags),
       }));
-    } catch (e) {
-      console.warn("searchKnowledge error:", e);
+    } catch {
       return [];
     }
   },
 
   async getStats(): Promise<DashboardStats> {
+    // Вариант 1: эндпоинт /api/stats/
     try {
-      // Пробуем эндпоинт /api/stats/ (если бэкендер добавил)
       const res = await fetch(`${BASE}/stats/`, {
         headers: { "Content-Type": "application/json" },
       });
@@ -231,28 +208,33 @@ export const realApi = {
         if (data.total !== undefined) return data;
       }
     } catch {
-      // Эндпоинта нет — считаем сами
+      /* ignore */
     }
 
-    // Считаем из тикетов
+    // Вариант 2: считаем из тикетов
     try {
       const res = await fetch(`${BASE}/tickets/?size=1000&page=1`, {
         headers: { "Content-Type": "application/json" },
       });
-
       if (!res.ok) {
-        return { total: 0, byStatus: {}, byPriority: {}, bySentiment: {} };
+        return {
+          total: 0,
+          byStatus: {},
+          byPriority: {},
+          bySentiment: {},
+          byCategory: {},
+        };
       }
 
       const data = await res.json();
       const tickets = extractArray<Ticket>(data);
       const total = extractTotal(data);
-
       cachedTickets = tickets;
 
       const byStatus: Record<string, number> = {};
       const byPriority: Record<string, number> = {};
       const bySentiment: Record<string, number> = {};
+      const byCategory: Record<string, number> = {};
 
       tickets.forEach((t) => {
         if (t.status) byStatus[t.status] = (byStatus[t.status] || 0) + 1;
@@ -260,12 +242,19 @@ export const realApi = {
           byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
         if (t.sentiment)
           bySentiment[t.sentiment] = (bySentiment[t.sentiment] || 0) + 1;
+        const catName = t.category?.name || "Другое";
+        byCategory[catName] = (byCategory[catName] || 0) + 1;
       });
 
-      return { total, byStatus, byPriority, bySentiment };
-    } catch (e) {
-      console.error("getStats error:", e);
-      return { total: 0, byStatus: {}, byPriority: {}, bySentiment: {} };
+      return { total, byStatus, byPriority, bySentiment, byCategory };
+    } catch {
+      return {
+        total: 0,
+        byStatus: {},
+        byPriority: {},
+        bySentiment: {},
+        byCategory: {},
+      };
     }
   },
 
@@ -274,7 +263,6 @@ export const realApi = {
       alert("Нет данных для экспорта. Откройте таблицу и попробуйте снова.");
       return;
     }
-
     const rows = ticketsToRows(cachedTickets);
     const headers = Object.keys(rows[0]);
     const csvLines = [
@@ -288,7 +276,6 @@ export const realApi = {
           .join(";"),
       ),
     ];
-
     const bom = "\uFEFF";
     const blob = new Blob([bom + csvLines.join("\r\n")], {
       type: "text/csv;charset=utf-8;",
@@ -301,10 +288,8 @@ export const realApi = {
       alert("Нет данных для экспорта. Откройте таблицу и попробуйте снова.");
       return;
     }
-
     const rows = ticketsToRows(cachedTickets);
     const worksheet = XLSX.utils.json_to_sheet(rows);
-
     const colWidths = Object.keys(rows[0] || {}).map((key) => {
       const maxLen = Math.max(
         key.length,
@@ -313,7 +298,6 @@ export const realApi = {
       return { wch: Math.min(maxLen + 2, 50) };
     });
     worksheet["!cols"] = colWidths;
-
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Обращения");
     XLSX.writeFile(

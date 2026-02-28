@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from "react";
 import {
   X,
@@ -10,13 +11,17 @@ import {
   Mail,
   Hash,
   Cpu,
+  ChevronDown,
+  ChevronUp,
+  PenLine,
+  Bot,
+  Loader2,
 } from "lucide-react";
 import type { Ticket, Message } from "../../../types";
 import { api } from "../../../services/api";
 import { StatusBadge } from "../../badges/StatusBadge";
 import { PriorityBadge } from "../../badges/PriorityBadge";
 import "./TicketDetail.css";
-import { ResponseEditor } from "../../response-editor/ResponseEditor";
 
 interface Props {
   ticket: Ticket;
@@ -31,11 +36,28 @@ export const TicketDetail: React.FC<Props> = ({
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadedTicketId, setLoadedTicketId] = useState<number | null>(null);
+  const [editorOpen, setEditorOpen] = useState(true);
+  const [replyText, setReplyText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
 
   const loading = loadedTicketId !== ticket.id;
+  const isFinished = ticket.status === "closed" || ticket.status === "resolved";
 
+  // Блокируем скролл основного окна
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  // Загрузка сообщений
   useEffect(() => {
     let cancelled = false;
+    setEditorOpen(true);
+    setReplyText("");
+    setSent(false);
     api
       .getMessages(ticket.id)
       .then((msgs) => {
@@ -50,13 +72,35 @@ export const TicketDetail: React.FC<Props> = ({
     };
   }, [ticket.id]);
 
+  // Закрытие по Escape
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
   const refreshMessages = () => {
     api.getMessages(ticket.id).then(setMessages).catch(console.error);
   };
 
-  const handleSent = () => {
-    refreshMessages();
-    onTicketUpdated();
+  const handleUseAiDraft = () => {
+    if (ticket.ai_draft) setReplyText(ticket.ai_draft);
+  };
+
+  const handleSend = async () => {
+    if (!replyText.trim()) return;
+    setSending(true);
+    try {
+      await api.sendReply(ticket.id, replyText);
+      setSent(true);
+      refreshMessages();
+      onTicketUpdated();
+    } catch {
+      alert("Ошибка отправки");
+    }
+    setSending(false);
   };
 
   const formatDateTime = (s?: string | null) => {
@@ -67,7 +111,7 @@ export const TicketDetail: React.FC<Props> = ({
   return (
     <div className="detail-overlay" onClick={onClose}>
       <div className="detail-panel" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
+        {/* === Header (sticky) === */}
         <div className="detail-header">
           <div className="detail-title-row">
             <span className="detail-id">#{ticket.id}</span>
@@ -78,161 +122,213 @@ export const TicketDetail: React.FC<Props> = ({
           </button>
         </div>
 
-        {/* Контактные данные */}
-        <div className="detail-meta">
-          <div className="meta-section-title">Отправитель</div>
-          <div className="meta-grid">
-            <div className="meta-item">
-              <span className="meta-label">ФИО</span>
-              <span className="meta-value">{ticket.sender_name}</span>
-            </div>
-            <div className="meta-item">
-              <Mail size={12} className="meta-icon" />
-              <span className="meta-value">{ticket.sender_email}</span>
-            </div>
-            {ticket.phone && (
-              <div className="meta-item">
-                <Phone size={12} className="meta-icon" />
-                <span className="meta-value">{ticket.phone}</span>
-              </div>
-            )}
-            {ticket.object_name && (
-              <div className="meta-item">
-                <Building2 size={12} className="meta-icon" />
-                <span className="meta-value">{ticket.object_name}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Оборудование */}
-        {(ticket.device_type || ticket.serial_numbers) && (
+        {/* === Scrollable content === */}
+        <div className="detail-body">
+          {/* Meta: отправитель */}
           <div className="detail-meta">
-            <div className="meta-section-title">Оборудование</div>
+            <div className="meta-section-title">Отправитель</div>
             <div className="meta-grid">
-              {ticket.device_type && (
+              <div className="meta-item">
+                <span className="meta-label">ФФО</span>
+                <span className="meta-value">{ticket.sender_name}</span>
+              </div>
+              <div className="meta-item">
+                <Mail size={12} className="meta-icon" />
+                <span className="meta-value">{ticket.sender_email}</span>
+              </div>
+              {ticket.phone && (
                 <div className="meta-item">
-                  <Cpu size={12} className="meta-icon" />
-                  <span className="meta-label">Тип</span>
-                  <span className="meta-value device-type-value">
-                    {ticket.device_type}
-                  </span>
+                  <Phone size={12} className="meta-icon" />
+                  <span className="meta-value">{ticket.phone}</span>
                 </div>
               )}
-              {ticket.serial_numbers && (
-                <div className="meta-item meta-item-full">
-                  <Hash size={12} className="meta-icon" />
-                  <span className="meta-label">Заводские номера</span>
-                  <span className="meta-value mono">
-                    {ticket.serial_numbers}
-                  </span>
+              {ticket.object_name && (
+                <div className="meta-item">
+                  <Building2 size={12} className="meta-icon" />
+                  <span className="meta-value">{ticket.object_name}</span>
                 </div>
               )}
             </div>
           </div>
-        )}
 
-        {/* AI-классификация */}
-        <div className="detail-meta">
-          <div className="meta-section-title">Классификация AI</div>
-          <div className="meta-row">
-            <div className="meta-item">
-              <span className="meta-label">Категория</span>
-              <span className="meta-value">
-                {ticket.category?.name || "Не определена"}
-              </span>
-            </div>
-            <div className="meta-item">
-              <span className="meta-label">Приоритет</span>
-              <PriorityBadge priority={ticket.priority} />
-            </div>
-            <div className="meta-item">
-              <span className="meta-label">Окрас</span>
-              <StatusBadge status={ticket.status} />
-            </div>
-            <div className="meta-item">
-              <span className="meta-label">Уверенность</span>
-              <span className="meta-value confidence-bar">
-                <span
-                  className="confidence-fill"
-                  style={{ width: `${(ticket.confidence || 0) * 100}%` }}
-                />
-                <span className="confidence-text">
-                  {ticket.confidence
-                    ? `${Math.round(ticket.confidence * 100)}%`
-                    : "-"}
-                </span>
-              </span>
-            </div>
-          </div>
-          {ticket.description && (
-            <div className="meta-description">
-              <span className="meta-label">Суть вопроса</span>
-              <p className="description-full">{ticket.description}</p>
+          {/* Meta: оборудование */}
+          {(ticket.device_type || ticket.serial_numbers) && (
+            <div className="detail-meta">
+              <div className="meta-section-title">Оборудование</div>
+              <div className="meta-grid">
+                {ticket.device_type && (
+                  <div className="meta-item">
+                    <Cpu size={12} className="meta-icon" />
+                    <span className="meta-label">Тип</span>
+                    <span className="meta-value device-type-value">
+                      {ticket.device_type}
+                    </span>
+                  </div>
+                )}
+                {ticket.serial_numbers && (
+                  <div className="meta-item meta-item-full">
+                    <Hash size={12} className="meta-icon" />
+                    <span className="meta-label">Заводские номера</span>
+                    <span className="meta-value mono">
+                      {ticket.serial_numbers}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
-        </div>
 
-        {/* Дата */}
-        <div className="detail-meta compact">
-          <div className="meta-row">
-            <div className="meta-item">
-              <span className="meta-label">Дата поступления</span>
-              <span className="meta-value">
-                {formatDateTime(ticket.received_at)}
-              </span>
-            </div>
-            <div className="meta-item">
-              <span className="meta-label">Статус</span>
-              <StatusBadge status={ticket.status} />
-            </div>
-          </div>
-        </div>
-
-        {/* Переписка */}
-        <div className="detail-messages">
-          <h3 className="section-title">
-            <MessageSquare size={16} /> Переписка
-          </h3>
-          <div className="messages-list">
-            {loading && <div className="messages-loading">Загрузка...</div>}
-            {!loading && messages.length === 0 && (
-              <div className="messages-empty">Нет сообщений</div>
-            )}
-            {messages.map((msg) => (
-              <div key={msg.id} className={`message-bubble ${msg.direction}`}>
-                <div className="message-header">
-                  <span className="message-direction">
-                    {msg.direction === "inbound" ? (
-                      <>
-                        <Inbox size={12} /> Входящее
-                      </>
-                    ) : (
-                      <>
-                        <Send size={12} /> Исходящее
-                      </>
-                    )}
-                  </span>
-                  <span className="message-sender">{msg.sender}</span>
-                  <span className="message-time">
-                    {formatDateTime(msg.sent_at)}
-                  </span>
-                </div>
-                <div className="message-body">{msg.body_text}</div>
+          {/* Meta: AI-классификация */}
+          <div className="detail-meta">
+            <div className="meta-section-title">Классификация AI</div>
+            <div className="meta-row">
+              <div className="meta-item">
+                <span className="meta-label">Категория</span>
+                <span className="meta-value">
+                  {ticket.category?.name || "Не определена"}
+                </span>
               </div>
-            ))}
+              <div className="meta-item">
+                <span className="meta-label">Приоритет</span>
+                <PriorityBadge priority={ticket.priority} />
+              </div>
+              <div className="meta-item">
+                <span className="meta-label">Статус</span>
+                <StatusBadge status={ticket.status} />
+              </div>
+              <div className="meta-item">
+                <span className="meta-label">Уверенность</span>
+                <span className="meta-value confidence-bar">
+                  <span
+                    className="confidence-fill"
+                    style={{ width: `${(ticket.confidence || 0) * 100}%` }}
+                  />
+                  <span className="confidence-text">
+                    {ticket.confidence
+                      ? `${Math.round(ticket.confidence * 100)}%`
+                      : "-"}
+                  </span>
+                </span>
+              </div>
+            </div>
+            {ticket.description && (
+              <div className="meta-description">
+                <span className="meta-label">Суть вопроса</span>
+                <p className="description-full">{ticket.description}</p>
+              </div>
+            )}
+          </div>
+
+          {/* === Переписка === */}
+          <div className="detail-messages">
+            <div className="section-title">
+              <MessageSquare size={16} />
+              Переписка ({messages.length})
+            </div>
+            <div className="messages-list">
+              {loading && <div className="messages-loading">Загрузка...</div>}
+              {!loading && messages.length === 0 && (
+                <div className="messages-empty">Нет сообщений</div>
+              )}
+              {messages.map((msg) => (
+                <div key={msg.id} className={`message-bubble ${msg.direction}`}>
+                  <div className="message-header">
+                    <span className="message-direction">
+                      {msg.direction === "inbound" ? (
+                        <>
+                          <Inbox size={12} /> Входящее
+                        </>
+                      ) : (
+                        <>
+                          <Send size={12} /> Исходящее
+                        </>
+                      )}
+                    </span>
+                    <span className="message-sender">{msg.sender}</span>
+                    <span className="message-time">
+                      {formatDateTime(msg.sent_at)}
+                    </span>
+                  </div>
+                  <div className="message-body">{msg.body_text}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
+        {/* === /Scrollable content === */}
 
-        {/* Редактор */}
-        {ticket.status !== "closed" && ticket.status !== "resolved" && (
-          <ResponseEditor ticket={ticket} onSent={handleSent} />
-        )}
-
-        {(ticket.status === "closed" || ticket.status === "resolved") && (
-          <div className="detail-resolved">
-            <CheckCircle size={18} />
+        {/* === Нижняя панель: ответ или статус === */}
+        {isFinished ? (
+          <div className="detail-bottom-bar resolved-bar">
+            <CheckCircle size={16} />
             Обращение {ticket.status === "resolved" ? "решено" : "закрыто"}
+          </div>
+        ) : (
+          <div className={`detail-editor-panel ${editorOpen ? "open" : ""}`}>
+            {/* Заголовок-переключатель */}
+            <button
+              className="editor-toggle"
+              onClick={() => setEditorOpen(!editorOpen)}
+            >
+              <div className="editor-toggle-left">
+                <PenLine size={14} />
+                <span>Ответ клиенту</span>
+                {sent && <span className="sent-inline-badge">отправлен</span>}
+              </div>
+              {editorOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+            </button>
+
+            {/* Контент всегда в DOM — плавная анимация max-height */}
+            <div className="editor-content" aria-hidden={!editorOpen}>
+              {sent ? (
+                <div className="editor-sent-msg">
+                  <CheckCircle size={16} />
+                  Ответ отправлен на {ticket.sender_email}
+                </div>
+              ) : (
+                <>
+                  <div className="editor-actions-row">
+                    {ticket.ai_draft && (
+                      <button className="btn btn-ai" onClick={handleUseAiDraft}>
+                        <Bot size={13} /> Вставить AI-черновик
+                      </button>
+                    )}
+                    {ticket.ai_draft && !replyText && (
+                      <span className="ai-hint">
+                        AI подготовил черновик ответа
+                      </span>
+                    )}
+                  </div>
+                  <textarea
+                    className="editor-textarea"
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    rows={6}
+                    placeholder="Введите текст ответа..."
+                  />
+                  <div className="editor-footer">
+                    <span className="char-count">
+                      {replyText.length} символов
+                    </span>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSend}
+                      disabled={sending || !replyText.trim()}
+                    >
+                      {sending ? (
+                        <>
+                          <Loader2 size={14} className="spin" /> Отправка...
+                        </>
+                      ) : (
+                        <>
+                          <Send size={14} /> Отправить
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>
