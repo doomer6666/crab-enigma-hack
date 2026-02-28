@@ -7,6 +7,8 @@ import {
   Smile,
   Meh,
   Frown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import type { Ticket, TicketListResponse, TicketFilters } from "../../../types";
 import { api } from "../../../services/api";
@@ -17,7 +19,6 @@ import { CustomSelect } from "../../ui/custom-select/CustomSelect";
 const STATUS_OPTIONS = [
   { value: "", label: "Все статусы" },
   { value: "new", label: "Новые" },
-  { value: "ai_processed", label: "AI обработан" },
   { value: "in_progress", label: "В работе" },
   { value: "resolved", label: "Решенные" },
 ];
@@ -38,7 +39,12 @@ export const TicketTable: React.FC<Props> = ({
   selectedId,
 }) => {
   const [data, setData] = useState<TicketListResponse>({ items: [], total: 0 });
-  const [filters, setFilters] = useState<TicketFilters>({ page: 1, size: 20 });
+  const [filters, setFilters] = useState<TicketFilters>({
+    page: 1,
+    size: 20,
+    sortBy: "created_at", // Сортировка по умолчанию
+    sortDir: "desc", // От новых к старым
+  });
   const [search, setSearch] = useState("");
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
 
@@ -93,6 +99,23 @@ export const TicketTable: React.FC<Props> = ({
     setFilters((prev) => ({ ...prev, [key]: value || undefined, page: 1 }));
   };
 
+  const handleSort = (field: string) => {
+    setFilters((prev) => {
+      const isSameField = prev.sortBy === field;
+      const newDir = isSameField && prev.sortDir === "desc" ? "asc" : "desc";
+      return { ...prev, sortBy: field, sortDir: newDir };
+    });
+  };
+
+  const renderSortIcon = (field: string) => {
+    if (filters.sortBy !== field) return null;
+    return filters.sortDir === "asc" ? (
+      <ArrowUp size={12} />
+    ) : (
+      <ArrowDown size={12} />
+    );
+  };
+
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return "-";
     return new Date(dateStr).toLocaleDateString("ru-RU", {
@@ -126,7 +149,6 @@ export const TicketTable: React.FC<Props> = ({
           />
         </div>
         <div className="toolbar-actions">
-          {/* Вернул btn-ghost для Обновить */}
           <button className="btn btn-ghost" onClick={handleRefresh}>
             <RefreshCw size={14} /> Обновить
           </button>
@@ -146,13 +168,21 @@ export const TicketTable: React.FC<Props> = ({
         <table className="tickets-table">
           <thead>
             <tr>
-              <th>Дата</th>
+              <th className="sortable" onClick={() => handleSort("created_at")}>
+                <div className="th-content">
+                  Дата {renderSortIcon("created_at")}
+                </div>
+              </th>
               <th>ФИО</th>
               <th>Объект</th>
               <th>Тип прибора</th>
               <th>Категория</th>
               <th>Окрас</th>
-              <th>Статус</th>
+              <th className="sortable" onClick={() => handleSort("status")}>
+                <div className="th-content">
+                  Статус {renderSortIcon("status")}
+                </div>
+              </th>
               <th className="th-subject">Суть вопроса</th>
             </tr>
           </thead>

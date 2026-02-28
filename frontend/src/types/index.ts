@@ -21,6 +21,7 @@ export interface Ticket {
 
 export type TicketStatus =
   | "new"
+  | "ai_processed"
   | "in_progress"
   | "awaiting_reply"
   | "resolved";
@@ -56,6 +57,8 @@ export interface TicketFilters {
   search?: string;
   page: number;
   size: number;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
 }
 
 export interface DashboardStats {

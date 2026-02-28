@@ -1,5 +1,5 @@
 import React from "react";
-import { Inbox, Zap, CheckCircle, ThumbsDown, FolderOpen } from "lucide-react";
+import { Inbox, Zap, CheckCircle, ThumbsDown } from "lucide-react";
 import type { DashboardStats } from "../../../types";
 import "./StatsCards.css";
 
@@ -32,13 +32,6 @@ export const StatsCards: React.FC<Props> = ({ stats }) => {
         <ThumbsDown size={20} className="stat-icon stat-icon-negative" />
         <div className="stat-value">{stats.bySentiment["negative"] || 0}</div>
         <div className="stat-label">Негатив</div>
-      </div>
-      <div className="stat-card stat-categories">
-        <FolderOpen size={20} className="stat-icon stat-icon-categories" />
-        <div className="stat-value">
-          {Object.keys(stats.byCategory || {}).length}
-        </div>
-        <div className="stat-label">Категорий</div>
       </div>
     </div>
   );

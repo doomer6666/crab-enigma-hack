@@ -84,6 +84,10 @@ export const realApi = {
     params.set("page", String(filters.page));
     params.set("size", String(filters.size));
 
+    // Передаем параметры сортировки
+    if (filters.sortBy) params.set("sort_by", filters.sortBy);
+    if (filters.sortDir) params.set("sort_dir", filters.sortDir);
+
     try {
       const res = await fetch(`${BASE}/tickets/?${params}`, {
         headers: { "Content-Type": "application/json" },

@@ -7,7 +7,6 @@
     flex-direction: column;
 }
 
-/* --- Toolbar --- */
 .table-toolbar {
     display: flex;
     align-items: center;
@@ -33,23 +32,18 @@
     gap: 8px;
 }
 
-/* --- ЕДИНЫЙ РАЗМЕР (36px) --- */
 .search-input,
 .btn,
 .custom-select .select-trigger {
     height: 36px !important;
-    /* Принудительно */
     min-height: 36px;
     max-height: 36px;
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    /* Центровка текста по вертикали */
     line-height: 1;
-    /* Чтобы текст не уезжал */
 }
 
-/* --- Поиск --- */
 .search-wrapper {
     position: relative;
     flex-grow: 2;
@@ -69,7 +63,6 @@
 .search-input {
     width: 100%;
     padding: 0 12px 0 34px;
-    /* Вертикальный паддинг 0, т.к. height фиксирован */
     background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -88,18 +81,15 @@
     color: var(--text-muted);
 }
 
-/* --- Селект --- */
 .toolbar-filters .custom-select {
     width: 220px;
     flex-shrink: 0;
 }
 
-/* Фикс для триггера селекта (он внутри .custom-select) */
 .custom-select .select-trigger {
     width: 100%;
     justify-content: space-between;
     padding: 0 12px;
-    /* Убрал вертикальный паддинг */
     background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -111,14 +101,12 @@
     outline: none;
 }
 
-/* --- Кнопки --- */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     padding: 0 14px;
-    /* Только горизонтальный паддинг */
     border: none;
     border-radius: 6px;
     font-size: 13px;
@@ -164,7 +152,6 @@
     cursor: not-allowed;
 }
 
-/* --- Остальное (Таблица) --- */
 .table-container {
     overflow-x: auto;
     flex: 1;
@@ -186,6 +173,24 @@
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
     font-weight: 600;
+    transition: background 0.15s;
+}
+
+/* Стили для сортируемых колонок */
+.tickets-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.tickets-table th.sortable:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.th-content {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .tickets-table td {

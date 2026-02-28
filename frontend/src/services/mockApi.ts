@@ -49,11 +49,21 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+// Веса статусов для сортировки
+const STATUS_WEIGHTS: Record<string, number> = {
+  new: 0,
+  ai_processed: 1,
+  in_progress: 2,
+  awaiting_reply: 3,
+  resolved: 4,
+};
+
 export const mockApi = {
   async getTickets(filters: TicketFilters): Promise<TicketListResponse> {
     await delay();
     let result = [...tickets];
 
+    // Фильтрация
     if (filters.status) {
       result = result.filter((t) => t.status === filters.status);
     }
@@ -72,6 +82,35 @@ export const mockApi = {
           (t.device_type || "").toLowerCase().includes(q) ||
           (t.phone || "").includes(q),
       );
+    }
+
+    // Сортировка
+    if (filters.sortBy) {
+      const field = filters.sortBy;
+      const dir = filters.sortDir === "asc" ? 1 : -1;
+
+      result.sort((a, b) => {
+        if (field === "status") {
+          const wA = STATUS_WEIGHTS[a.status] ?? 99;
+          const wB = STATUS_WEIGHTS[b.status] ?? 99;
+          return (wA - wB) * dir;
+        }
+
+        if (field === "created_at") {
+          const dateA = new Date(a.received_at || a.created_at).getTime();
+          const dateB = new Date(b.received_at || b.created_at).getTime();
+          return (dateA - dateB) * dir;
+        }
+
+        // Дефолтная строковая сортировка (на будущее)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const valA = (a as any)[field];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const valB = (b as any)[field];
+        if (valA < valB) return -1 * dir;
+        if (valA > valB) return 1 * dir;
+        return 0;
+      });
     }
 
     const total = result.length;
