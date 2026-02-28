@@ -3,9 +3,9 @@ import {
   Inbox,
   Zap,
   CheckCircle,
-  AlertTriangle,
   ThumbsDown,
   Bot,
+  FolderOpen,
 } from "lucide-react";
 import type { DashboardStats } from "../../types";
 import { api } from "../../services/api";
@@ -51,11 +51,6 @@ export const Dashboard: React.FC = () => {
         <div className="stat-value">{stats.byStatus["resolved"] || 0}</div>
         <div className="stat-label">Решено</div>
       </div>
-      <div className="stat-card stat-critical">
-        <AlertTriangle size={20} className="stat-icon stat-icon-critical" />
-        <div className="stat-value">{stats.byPriority["critical"] || 0}</div>
-        <div className="stat-label">Критических</div>
-      </div>
       <div className="stat-card stat-negative">
         <ThumbsDown size={20} className="stat-icon stat-icon-negative" />
         <div className="stat-value">{stats.bySentiment["negative"] || 0}</div>
@@ -65,6 +60,13 @@ export const Dashboard: React.FC = () => {
         <Bot size={20} className="stat-icon stat-icon-ai" />
         <div className="stat-value">{stats.byStatus["ai_processed"] || 0}</div>
         <div className="stat-label">AI готово</div>
+      </div>
+      <div className="stat-card stat-categories">
+        <FolderOpen size={20} className="stat-icon stat-icon-categories" />
+        <div className="stat-value">
+          {Object.keys(stats.byCategory || {}).length}
+        </div>
+        <div className="stat-label">Категорий</div>
       </div>
     </div>
   );

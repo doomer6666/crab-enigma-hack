@@ -118,3 +118,11 @@
         display: none;
     }
 }
+
+.stat-categories .stat-value {
+    color: var(--text-primary);
+}
+
+.stat-icon-categories {
+    color: var(--text-secondary);
+}

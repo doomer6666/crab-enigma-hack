@@ -11,7 +11,6 @@ import {
 import type { Ticket, TicketListResponse, TicketFilters } from "../../../types";
 import { api } from "../../../services/api";
 import { StatusBadge } from "../../badges/StatusBadge";
-import { PriorityBadge } from "../../badges/PriorityBadge";
 import "./TicketTable.css";
 import { CustomSelect } from "../../ui/custom-select/CustomSelect";
 
@@ -22,14 +21,6 @@ const STATUS_OPTIONS = [
   { value: "in_progress", label: "В работе" },
   { value: "resolved", label: "Решенные" },
   { value: "closed", label: "Закрытые" },
-];
-
-const PRIORITY_OPTIONS = [
-  { value: "", label: "Все приоритеты" },
-  { value: "critical", label: "Критический" },
-  { value: "high", label: "Высокий" },
-  { value: "medium", label: "Средний" },
-  { value: "low", label: "Низкий" },
 ];
 
 interface Props {
@@ -134,12 +125,6 @@ export const TicketTable: React.FC<Props> = ({
             onChange={(v) => updateFilter("status", v)}
             placeholder="Все статусы"
           />
-          <CustomSelect
-            options={PRIORITY_OPTIONS}
-            value={filters.priority || ""}
-            onChange={(v) => updateFilter("priority", v)}
-            placeholder="Все приоритеты"
-          />
         </div>
         <div className="toolbar-actions">
           <button className="btn btn-ghost" onClick={handleRefresh}>
@@ -161,13 +146,12 @@ export const TicketTable: React.FC<Props> = ({
         <table className="tickets-table">
           <thead>
             <tr>
-              <th className="th-id">Дата</th>
+              <th>Дата</th>
               <th>ФИО</th>
               <th>Объект</th>
               <th>Тип прибора</th>
               <th>Категория</th>
               <th>Окрас</th>
-              <th>Приоритет</th>
               <th>Статус</th>
               <th className="th-subject">Суть вопроса</th>
             </tr>
@@ -175,14 +159,14 @@ export const TicketTable: React.FC<Props> = ({
           <tbody>
             {loading && data.items.length === 0 && (
               <tr>
-                <td colSpan={9} className="table-empty">
+                <td colSpan={8} className="table-empty">
                   <div className="loading-spinner" /> Загрузка...
                 </td>
               </tr>
             )}
             {!loading && data.items.length === 0 && (
               <tr>
-                <td colSpan={9} className="table-empty">
+                <td colSpan={8} className="table-empty">
                   Обращения не найдены
                 </td>
               </tr>
@@ -219,9 +203,6 @@ export const TicketTable: React.FC<Props> = ({
                   <span title={ticket.sentiment}>
                     {SENTIMENT_ICONS[ticket.sentiment] || <Meh size={18} />}
                   </span>
-                </td>
-                <td>
-                  <PriorityBadge priority={ticket.priority} />
                 </td>
                 <td>
                   <StatusBadge status={ticket.status} />

@@ -20,7 +20,6 @@ import {
 import type { Ticket, Message } from "../../../types";
 import { api } from "../../../services/api";
 import { StatusBadge } from "../../badges/StatusBadge";
-import { PriorityBadge } from "../../badges/PriorityBadge";
 import "./TicketDetail.css";
 
 interface Props {
@@ -44,7 +43,6 @@ export const TicketDetail: React.FC<Props> = ({
   const loading = loadedTicketId !== ticket.id;
   const isFinished = ticket.status === "closed" || ticket.status === "resolved";
 
-  // Блокируем скролл основного окна
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -52,7 +50,6 @@ export const TicketDetail: React.FC<Props> = ({
     };
   }, []);
 
-  // Загрузка сообщений
   useEffect(() => {
     let cancelled = false;
     setEditorOpen(true);
@@ -72,7 +69,6 @@ export const TicketDetail: React.FC<Props> = ({
     };
   }, [ticket.id]);
 
-  // Закрытие по Escape
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -111,7 +107,6 @@ export const TicketDetail: React.FC<Props> = ({
   return (
     <div className="detail-overlay" onClick={onClose}>
       <div className="detail-panel" onClick={(e) => e.stopPropagation()}>
-        {/* === Header (sticky) === */}
         <div className="detail-header">
           <div className="detail-title-row">
             <span className="detail-id">#{ticket.id}</span>
@@ -122,14 +117,12 @@ export const TicketDetail: React.FC<Props> = ({
           </button>
         </div>
 
-        {/* === Scrollable content === */}
         <div className="detail-body">
-          {/* Meta: отправитель */}
           <div className="detail-meta">
             <div className="meta-section-title">Отправитель</div>
             <div className="meta-grid">
               <div className="meta-item">
-                <span className="meta-label">ФФО</span>
+                <span className="meta-label">ФИО</span>
                 <span className="meta-value">{ticket.sender_name}</span>
               </div>
               <div className="meta-item">
@@ -151,7 +144,6 @@ export const TicketDetail: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Meta: оборудование */}
           {(ticket.device_type || ticket.serial_numbers) && (
             <div className="detail-meta">
               <div className="meta-section-title">Оборудование</div>
@@ -178,7 +170,6 @@ export const TicketDetail: React.FC<Props> = ({
             </div>
           )}
 
-          {/* Meta: AI-классификация */}
           <div className="detail-meta">
             <div className="meta-section-title">Классификация AI</div>
             <div className="meta-row">
@@ -189,12 +180,18 @@ export const TicketDetail: React.FC<Props> = ({
                 </span>
               </div>
               <div className="meta-item">
-                <span className="meta-label">Приоритет</span>
-                <PriorityBadge priority={ticket.priority} />
-              </div>
-              <div className="meta-item">
                 <span className="meta-label">Статус</span>
                 <StatusBadge status={ticket.status} />
+              </div>
+              <div className="meta-item">
+                <span className="meta-label">Окрас</span>
+                <span className="meta-value">
+                  {ticket.sentiment === "positive"
+                    ? "Позитивный"
+                    : ticket.sentiment === "negative"
+                      ? "Негативный"
+                      : "Нейтральный"}
+                </span>
               </div>
               <div className="meta-item">
                 <span className="meta-label">Уверенность</span>
@@ -219,7 +216,6 @@ export const TicketDetail: React.FC<Props> = ({
             )}
           </div>
 
-          {/* === Переписка === */}
           <div className="detail-messages">
             <div className="section-title">
               <MessageSquare size={16} />
@@ -255,9 +251,7 @@ export const TicketDetail: React.FC<Props> = ({
             </div>
           </div>
         </div>
-        {/* === /Scrollable content === */}
 
-        {/* === Нижняя панель: ответ или статус === */}
         {isFinished ? (
           <div className="detail-bottom-bar resolved-bar">
             <CheckCircle size={16} />
@@ -265,7 +259,6 @@ export const TicketDetail: React.FC<Props> = ({
           </div>
         ) : (
           <div className={`detail-editor-panel ${editorOpen ? "open" : ""}`}>
-            {/* Заголовок-переключатель */}
             <button
               className="editor-toggle"
               onClick={() => setEditorOpen(!editorOpen)}
@@ -277,58 +270,61 @@ export const TicketDetail: React.FC<Props> = ({
               </div>
               {editorOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
             </button>
-
-            {/* Контент всегда в DOM — плавная анимация max-height */}
-            <div className="editor-content" aria-hidden={!editorOpen}>
-              {sent ? (
-                <div className="editor-sent-msg">
-                  <CheckCircle size={16} />
-                  Ответ отправлен на {ticket.sender_email}
-                </div>
-              ) : (
-                <>
-                  <div className="editor-actions-row">
-                    {ticket.ai_draft && (
-                      <button className="btn btn-ai" onClick={handleUseAiDraft}>
-                        <Bot size={13} /> Вставить AI-черновик
-                      </button>
-                    )}
-                    {ticket.ai_draft && !replyText && (
-                      <span className="ai-hint">
-                        AI подготовил черновик ответа
-                      </span>
-                    )}
+            {editorOpen && (
+              <div className="editor-content">
+                {sent ? (
+                  <div className="editor-sent-msg">
+                    <CheckCircle size={16} />
+                    Ответ отправлен на {ticket.sender_email}
                   </div>
-                  <textarea
-                    className="editor-textarea"
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    rows={6}
-                    placeholder="Введите текст ответа..."
-                  />
-                  <div className="editor-footer">
-                    <span className="char-count">
-                      {replyText.length} символов
-                    </span>
-                    <button
-                      className="btn btn-primary"
-                      onClick={handleSend}
-                      disabled={sending || !replyText.trim()}
-                    >
-                      {sending ? (
-                        <>
-                          <Loader2 size={14} className="spin" /> Отправка...
-                        </>
-                      ) : (
-                        <>
-                          <Send size={14} /> Отправить
-                        </>
+                ) : (
+                  <>
+                    <div className="editor-actions-row">
+                      {ticket.ai_draft && (
+                        <button
+                          className="btn btn-ai"
+                          onClick={handleUseAiDraft}
+                        >
+                          <Bot size={13} /> Вставить AI-черновик
+                        </button>
                       )}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+                      {ticket.ai_draft && !replyText && (
+                        <span className="ai-hint">
+                          AI подготовил черновик ответа
+                        </span>
+                      )}
+                    </div>
+                    <textarea
+                      className="editor-textarea"
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      rows={6}
+                      placeholder="Введите текст ответа..."
+                    />
+                    <div className="editor-footer">
+                      <span className="char-count">
+                        {replyText.length} символов
+                      </span>
+                      <button
+                        className="btn btn-primary"
+                        onClick={handleSend}
+                        disabled={sending || !replyText.trim()}
+                      >
+                        {sending ? (
+                          <>
+                            <Loader2 size={14} className="spin" /> Отправка...
+                          </>
+                        ) : (
+                          <>
+                            <Send size={14} /> Отправить
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

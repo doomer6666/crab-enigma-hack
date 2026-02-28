@@ -1,5 +1,12 @@
-import React from "react";
-import { ClipboardList, BookOpen, Activity, FlaskConical } from "lucide-react";
+import React, { useState } from "react";
+import {
+  ClipboardList,
+  BookOpen,
+  Activity,
+  FlaskConical,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 import "./Layout.css";
 
 interface Props {
@@ -13,8 +20,10 @@ export const Layout: React.FC<Props> = ({
   currentPage,
   onNavigate,
 }) => {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <div className="layout">
+    <div className={`layout ${collapsed ? "sidebar-collapsed" : ""}`}>
       <aside className="sidebar">
         <div className="sidebar-logo">
           <div className="logo-icon">J</div>
@@ -28,28 +37,41 @@ export const Layout: React.FC<Props> = ({
           <button
             className={`nav-item ${currentPage === "tickets" ? "active" : ""}`}
             onClick={() => onNavigate("tickets")}
+            title="Обращения"
           >
             <ClipboardList size={18} />
-            <span>Обращения</span>
+            <span className="nav-label">Обращения</span>
           </button>
           <button
             className={`nav-item ${currentPage === "knowledge" ? "active" : ""}`}
             onClick={() => onNavigate("knowledge")}
+            title="База знаний"
           >
             <BookOpen size={18} />
-            <span>База знаний</span>
+            <span className="nav-label">База знаний</span>
           </button>
         </nav>
 
         <div className="sidebar-footer">
           <div className="status-indicator">
             <Activity size={14} className="status-icon-pulse" />
-            <span>Система активна</span>
+            <span className="nav-label">Система активна</span>
           </div>
           <div className="mock-badge">
             <FlaskConical size={12} />
-            MOCK MODE
+            <span className="nav-label">MOCK</span>
           </div>
+          <button
+            className="collapse-btn"
+            onClick={() => setCollapsed(!collapsed)}
+            title={collapsed ? "Развернуть меню" : "Свернуть меню"}
+          >
+            {collapsed ? (
+              <PanelLeftOpen size={16} />
+            ) : (
+              <PanelLeftClose size={16} />
+            )}
+          </button>
         </div>
       </aside>
 
