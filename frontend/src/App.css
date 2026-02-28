@@ -70,6 +70,10 @@ body {
   color: var(--text-primary);
 }
 
+.page-header svg {
+  margin-top: 7px;
+}
+
 .page-subtitle {
   color: var(--text-muted);
   font-size: 13px;

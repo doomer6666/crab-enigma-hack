@@ -17,6 +17,7 @@ import { CustomSelect } from "../../ui/custom-select/CustomSelect";
 const STATUS_OPTIONS = [
   { value: "", label: "Все статусы" },
   { value: "new", label: "Новые" },
+  { value: "ai_processed", label: "AI обработан" },
   { value: "in_progress", label: "В работе" },
   { value: "resolved", label: "Решенные" },
 ];
@@ -125,6 +126,7 @@ export const TicketTable: React.FC<Props> = ({
           />
         </div>
         <div className="toolbar-actions">
+          {/* Вернул btn-ghost для Обновить */}
           <button className="btn btn-ghost" onClick={handleRefresh}>
             <RefreshCw size={14} /> Обновить
           </button>
