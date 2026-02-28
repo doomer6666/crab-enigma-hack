@@ -47,7 +47,6 @@ INSTALLED_APPS = [
 
     'apps.users',
     'apps.tickets',
-    'apps.knowledge',
     'apps.integrations',
 ]
 
@@ -143,6 +142,7 @@ EMAIL_HOST_USER = env('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
 EMAIL_TEST_USER = env('EMAIL_TEST_USER')
 EMAIL_TEST_PASSWORD = env('EMAIL_TEST_PASSWORD')
+TELEGRAM_BOT_TOKEN = env('TELEGRAM_BOT_TOKEN', default=None)
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/

@@ -12,6 +12,9 @@ python manage.py collectstatic --noinput
 echo "Starting email poller..."
 python manage.py poll_mails &
 
+echo "Starting Telegram Bot..."
+python manage.py run_bot &
+
 # Запускаем основной веб-сервер (Gunicorn)
 # exec заменяет текущий процесс шелла на процесс гуникорна
 echo "Starting Gunicorn..."

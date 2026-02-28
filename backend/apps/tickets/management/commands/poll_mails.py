@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from apps.integrations.email_client import EmailService
 from apps.tickets.models import Ticket, Message
-
+from apps.integrations.telegram_client import send_telegram_alert
 # Импорт функции и класса (убедись, что путь правильный)
 from jarvis.app.services.pipeline import process_email
 
@@ -81,7 +81,12 @@ class Command(BaseCommand):
 
                                 ticket.status = Ticket.Status.AWAITING_REPLY
                                 ticket.save()
-
+                                if ticket.sentiment == 'negative' or ticket.priority == 'critical':
+                                    self.stdout.write(f"🔥 Detected negative sentiment! Sending alert...")
+                                    try:
+                                        send_telegram_alert(ticket)
+                                    except Exception as e:
+                                        self.stdout.write(self.style.ERROR(f"Telegram error: {e}"))
                                 self.stdout.write(self.style.SUCCESS(
                                     f"Ticket #{ticket.id} AI processed! Category: {ticket.category}"))
                             else:

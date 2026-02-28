@@ -7,7 +7,6 @@ urlpatterns = [
     
     # Наши API
     path('api/', include('apps.tickets.urls')),
-    path('api/', include('apps.knowledge.urls')),
 
     # Swagger / OpenAPI
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
