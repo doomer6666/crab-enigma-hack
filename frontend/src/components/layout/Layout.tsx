@@ -20,7 +20,7 @@ export const Layout: React.FC<Props> = ({
   currentPage,
   onNavigate,
 }) => {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   return (
     <div className={`layout ${collapsed ? "sidebar-collapsed" : ""}`}>
