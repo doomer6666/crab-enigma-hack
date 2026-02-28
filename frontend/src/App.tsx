@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { TicketsPage } from "./pages/TicketsPage";
-import { KnowledgePage } from "./pages/KnowledgePage";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import "./App.css";
 import { Layout } from "./components/layout/Layout";
@@ -12,7 +11,6 @@ const App: React.FC = () => {
     <Layout currentPage={currentPage} onNavigate={setCurrentPage}>
       {currentPage === "tickets" && <TicketsPage />}
       {currentPage === "analytics" && <AnalyticsPage />}
-      {currentPage === "knowledge" && <KnowledgePage />}
     </Layout>
   );
 };

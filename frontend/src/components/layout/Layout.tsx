@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   ClipboardList,
-  BookOpen,
   Activity,
   FlaskConical,
   PanelLeftClose,
@@ -52,15 +51,6 @@ export const Layout: React.FC<Props> = ({
           >
             <BarChart3 size={18} />
             <span className="nav-label">Аналитика</span>
-          </button>
-
-          <button
-            className={`nav-item ${currentPage === "knowledge" ? "active" : ""}`}
-            onClick={() => onNavigate("knowledge")}
-            title="База знаний"
-          >
-            <BookOpen size={18} />
-            <span className="nav-label">База знаний</span>
           </button>
         </nav>
 
