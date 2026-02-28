@@ -2,9 +2,9 @@ import re
 from .models_parser import read_models
 
 SERIAL_REGEX = r"\b[A-Z]{2}\d{9}\b"
-PHONE_REGEX = r"\+?\d[\d\-\(\) ]{8,}\d"
+PHONE_REGEX = r"(\+7|8|7)[\s\-]?\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}"
 NAME_REGEX = r"[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+"
-COMPANY_REGEX = r"(ООО|АО|ЗАО)\s+«[^»]+»"
+COMPANY_REGEX = r"(ООО|АО|ЗАО|ИП)\s+([«\"']?[^»\"'\n\r\t]+[»\"']?|[A-ZА-Яa-zа-я0-9_-]+)"
 
 class ExtractedEmail:
     def __init__(self):

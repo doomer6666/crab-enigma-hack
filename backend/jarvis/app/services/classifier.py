@@ -5,7 +5,7 @@ from app.core.bert import embed_text
 
 
 TOPIC_PROTOTYPES = {
-    "Неисправность": ["вышел из строя прибор", "не работает датчик", "сломался", "ошибка системы", "постоянно виснет", "не включается устройство"],
+    "Неисправность": ["вышел из строя прибор", "не работает датчик", "сломался", "ошибка системы", "постоянно виснет", "не включается устройство", "помогите не работает", "все сломалось", "срочный ремонт", "не запускается", "ошибка при включении", "выход из строя"],
     "Калибровка": ["провести калибровку", "настройка точности", "откалибровать", "поверка прибора", "погрешность измерений"],
     "Запрос документации": ["пришлите документацию", "нужна инструкция пользователя", "manual руководство", "паспорт на изделие", "чертежи и схемы"],
     "Подключение и ПО": ["установить софт", "драйвер для связи", "прошивка firmware", "программное обеспечение", "подключить к компьютеру"],
@@ -31,28 +31,37 @@ def cosine_similarity(v1, v2_matrix):
     v2_normalized = v2_matrix / v2_norms[:, np.newaxis]
     return np.dot(v2_normalized, v1_norm)
 
-def predict_topic(email_text: str, threshold=0.45): 
-    sentences = re.split(r'[.!?\n]', email_text)
-    sentences = [s.strip() for s in sentences if len(s.strip()) > 15]
+def predict_topic(email_text: str, threshold=0.45): # Подняли порог еще чуть-чуть
+    # 1. Очистка от мусора (телефоны, ООО, лишние крики)
+    clean_text = re.sub(r'\+?\d[\d\-\(\) ]{7,15}', '', email_text) # Удаляем телефоны
+    clean_text = re.sub(r'ООО\s+["\w]+', '', clean_text)          # Удаляем названия компаний
     
-    if not sentences:
+    sentences = re.split(r'[.!?\n]', clean_text)
+    
+    # Игнорируем слишком короткие и чисто цифровые строки
+    valid_sentences = []
+    for s in sentences:
+        s = s.strip()
+        # Если в предложении меньше 12 символов или это просто набор цифр/имен - скипаем
+        if len(s) > 12 and not s.isdigit():
+            valid_sentences.append(s)
+    
+    if not valid_sentences:
         return "Другое"
 
-    letter_embs = [embed_text(s) for s in sentences]
+    letter_embs = [embed_text(s) for s in valid_sentences]
     topic_scores = {}
 
     for topic, centroid in TOPIC_CENTROIDS.items():
-        scores = []
-        for s_emb in letter_embs:
-            s_norm = s_emb / (np.linalg.norm(s_emb) + 1e-9)
-            score = np.dot(s_norm, centroid)
-            scores.append(score)
-        
+        scores = [np.dot(emb / np.linalg.norm(emb), centroid) for emb in letter_embs]
         topic_scores[topic] = np.max(scores)
 
     best_topic = max(topic_scores, key=topic_scores.get)
     max_score = topic_scores[best_topic]
 
+    # Если это просто крик "НЕ РАБОТАЕТ" без конкретики, 
+    # score будет в районе 0.35-0.43, что ниже нашего порога 0.48
+    print(max_score)
     if max_score < threshold:
         return "Другое"
 
