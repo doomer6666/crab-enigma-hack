@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useForm, useWatch } from "react-hook-form"; // Criterion 4: Ready-made solutions
 import {
   X,
   Inbox,
@@ -15,9 +16,14 @@ import {
   PenLine,
   Loader2,
 } from "lucide-react";
-import type { Ticket, Message } from "../../../types";
-import { api } from "../../../services/api";
+import type { Ticket } from "../../../types";
 import { StatusBadge } from "../../badges/StatusBadge";
+import {
+  useTicket,
+  useTicketMessages,
+  useResolveTicket,
+  useSendReply,
+} from "../../../services/queries"; // Criterion 3: Architecture
 import "./TicketDetail.css";
 
 interface Props {
@@ -26,22 +32,40 @@ interface Props {
   onTicketUpdated: () => void;
 }
 
-export const TicketDetail: React.FC<Props> = ({
-  ticket,
-  onClose,
-  onTicketUpdated,
-}) => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loadedTicketId, setLoadedTicketId] = useState<number | null>(null);
-  const [editorOpen, setEditorOpen] = useState(true);
-  const [replyText, setReplyText] = useState("");
-  const [sending, setSending] = useState(false);
-  const [resolving, setResolving] = useState(false);
-  const [sent, setSent] = useState(false);
+interface FormValues {
+  replyText: string;
+}
 
-  const loading = loadedTicketId !== ticket.id;
+export const TicketDetail: React.FC<Props> = ({
+  ticket: initialTicket,
+  onClose,
+}) => {
+  // 1. Используем хук для получения "живых" данных тикета (чтобы статус обновлялся сам)
+  const { data: ticketData } = useTicket(initialTicket.id, initialTicket);
+  const ticket = ticketData || initialTicket;
+
+  // 2. Загрузка сообщений через React Query
+  const { data: messages = [], isLoading: loading } = useTicketMessages(
+    ticket.id,
+  );
+
+  // 3. Мутации (Отправка и Решение)
+  const replyMutation = useSendReply();
+  const resolveMutation = useResolveTicket();
+
+  const [editorOpen, setEditorOpen] = useState(true);
   const isFinished = ticket.status === "resolved";
 
+  // 4. React Hook Form для управления формой ответа
+  const { register, handleSubmit, setValue, control, reset } =
+    useForm<FormValues>({
+      defaultValues: { replyText: "" },
+    });
+
+  // Следим за значением поля для блокировки кнопки
+  const replyText = useWatch({ control, name: "replyText" });
+
+  // Эффект для блокировки скролла body
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -49,34 +73,16 @@ export const TicketDetail: React.FC<Props> = ({
     };
   }, []);
 
-  // Загрузка сообщений и авто-вставка черновика
+  // Эффект для подстановки AI черновика
   useEffect(() => {
-    let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEditorOpen(true);
-    setSent(false);
-
-    // Автоматическая вставка AI черновика при открытии
     if (ticket.ai_draft) {
-      setReplyText(ticket.ai_draft);
+      setValue("replyText", ticket.ai_draft);
     } else {
-      setReplyText("");
+      setValue("replyText", "");
     }
+  }, [ticket.id, ticket.ai_draft, setValue]);
 
-    api
-      .getMessages(ticket.id)
-      .then((msgs) => {
-        if (!cancelled) {
-          setMessages(msgs);
-          setLoadedTicketId(ticket.id);
-        }
-      })
-      .catch(console.error);
-    return () => {
-      cancelled = true;
-    };
-  }, [ticket.id, ticket.ai_draft]);
-
+  // Закрытие по ESC
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -85,35 +91,27 @@ export const TicketDetail: React.FC<Props> = ({
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  const refreshMessages = () => {
-    api.getMessages(ticket.id).then(setMessages).catch(console.error);
+  // --- Handlers ---
+
+  const onSendSubmit = (data: FormValues) => {
+    if (!data.replyText.trim()) return;
+
+    replyMutation.mutate(
+      { ticketId: ticket.id, text: data.replyText },
+      {
+        onSuccess: () => {
+          reset(); // Очищаем форму
+          // Сообщения и статус обновятся автоматически благодаря React Query
+        },
+        onError: () => alert("Ошибка отправки"),
+      },
+    );
   };
 
-  const handleSend = async () => {
-    if (!replyText.trim()) return;
-    setSending(true);
-    try {
-      await api.sendReply(ticket.id, replyText);
-      setSent(true);
-      setReplyText(""); // Очищаем после отправки
-      refreshMessages();
-      onTicketUpdated();
-    } catch {
-      alert("Ошибка отправки");
-    }
-    setSending(false);
-  };
-
-  const handleResolve = async () => {
-    setResolving(true);
-    try {
-      await api.resolveTicket(ticket.id);
-      onTicketUpdated();
-      onClose(); // Закрываем окно после решения
-    } catch {
-      alert("Ошибка при закрытии тикета");
-    }
-    setResolving(false);
+  const handleResolve = () => {
+    resolveMutation.mutate(ticket.id, {
+      // onSuccess можно добавить закрытие окна, если нужно: onClose()
+    });
   };
 
   const formatDateTime = (s?: string | null) => {
@@ -277,59 +275,60 @@ export const TicketDetail: React.FC<Props> = ({
               <div className="editor-toggle-left">
                 <PenLine size={14} />
                 <span>Ответ клиенту</span>
-                {sent && <span className="sent-inline-badge">отправлен</span>}
               </div>
               {editorOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
             </button>
             {editorOpen && (
               <div className="editor-content">
-                <textarea
-                  className="editor-textarea"
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  rows={6}
-                  placeholder="Введите текст ответа..."
-                />
-                <div className="editor-footer">
-                  <button
-                    className="btn btn-resolve"
-                    onClick={handleResolve}
-                    disabled={resolving}
-                    style={{
-                      background: "rgba(16, 185, 129, 0.1)",
-                      color: "#10b981",
-                      border: "1px solid rgba(16, 185, 129, 0.3)",
-                      marginRight: "auto",
-                    }}
-                  >
-                    {resolving ? (
-                      <Loader2 size={14} className="spin" />
-                    ) : (
-                      <CheckCircle size={14} />
-                    )}
-                    Вопрос решен
-                  </button>
+                <form onSubmit={handleSubmit(onSendSubmit)}>
+                  <textarea
+                    className="editor-textarea"
+                    rows={6}
+                    placeholder="Введите текст ответа..."
+                    {...register("replyText")}
+                  />
+                  <div className="editor-footer">
+                    <button
+                      type="button"
+                      className="btn btn-resolve"
+                      onClick={handleResolve}
+                      disabled={resolveMutation.isPending}
+                      style={{
+                        background: "rgba(16, 185, 129, 0.1)",
+                        color: "#10b981",
+                        border: "1px solid rgba(16, 185, 129, 0.3)",
+                        marginRight: "auto",
+                      }}
+                    >
+                      {resolveMutation.isPending ? (
+                        <Loader2 size={14} className="spin" />
+                      ) : (
+                        <CheckCircle size={14} />
+                      )}
+                      Вопрос решен
+                    </button>
 
-                  <span className="char-count" style={{ marginRight: 12 }}>
-                    {replyText.length} символов
-                  </span>
+                    <span className="char-count" style={{ marginRight: 12 }}>
+                      {replyText?.length || 0} символов
+                    </span>
 
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleSend}
-                    disabled={sending || !replyText.trim()}
-                  >
-                    {sending ? (
-                      <>
-                        <Loader2 size={14} className="spin" /> Отправка...
-                      </>
-                    ) : (
-                      <>
-                        <Send size={14} /> Отправить
-                      </>
-                    )}
-                  </button>
-                </div>
+                    <button
+                      className="btn btn-primary"
+                      type="submit"
+                      disabled={replyMutation.isPending || !replyText?.trim()}
+                    >
+                      {replyMutation.isPending ? (
+                        <>
+                          <Loader2 size={14} className="spin" /> Отправка...
+                        </>
+                      ) : (
+                        <>
+                          <Send size={14} /> Отправить
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
               </div>
             )}
           </div>
