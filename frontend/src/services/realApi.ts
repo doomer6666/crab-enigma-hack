@@ -259,7 +259,7 @@ export const realApi = {
       });
 
       if (res.ok) {
-        await this.updateTicket(ticketId, { status: "awaiting_reply" });
+        await this.updateTicket(ticketId, { status: "in_progress" });
         return { success: true };
       }
     } catch (e) {
