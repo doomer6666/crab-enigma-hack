@@ -1,42 +1,72 @@
-from app.core.bert import embed_text
 import numpy as np
+from typing import List
+from app.core.bert import embed_text
 
-# временная KB (потом заменится на postgres + pgvector)
+
 KB = [
     {
-        "text": "Как сбросить пароль через форму восстановления",
-        "category": "auth"
+        "text": "Попробуйте выполнить перезапуск устройства для устранения ошибки.",
+        "category": "Неисправность",
     },
     {
-        "text": "Проверка транзакции при списании средств",
-        "category": "billing"
+        "text": "Для проведения калибровки воспользуйтесь инструкцией в паспорте прибора.",
+        "category": "Калибровка",
     },
     {
-        "text": "Перезапуск устройства для устранения ошибки",
-        "category": "technical"
-    }
+        "text": "Актуальную документацию можно скачать на официальном сайте.",
+        "category": "Запрос документации",
+    },
+    {
+        "text": "Убедитесь, что установлены последние драйверы и прошивка.",
+        "category": "Подключение и ПО",
+    },
+    {
+        "text": "Для восстановления пароля используйте форму сброса на странице входа.",
+        "category": "Запрос пароля",
+    },
+    {
+        "text": "Монтаж необходимо выполнять согласно инструкции по установке.",
+        "category": "Монтаж и установка",
+    },
+    {
+        "text": "Для гарантийного ремонта обратитесь в сервисный центр.",
+        "category": "Гарантия и ремонт",
+    },
 ]
 
-# создаём embedding KB при старте
+
 KB_EMBEDDINGS = [embed_text(item["text"]) for item in KB]
 
 
-def cosine(a, b):
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+def cosine(a: np.ndarray, b: np.ndarray) -> float:
+    denom = np.linalg.norm(a) * np.linalg.norm(b)
+    if denom == 0:
+        return 0.0
+    return float(np.dot(a, b) / denom)
 
 
-def retrieve_answer(text: str) -> list[str]:
-    try:
-        query_emb = embed_text(text)
-
-        scores = [
-            cosine(query_emb, kb_emb)
-            for kb_emb in KB_EMBEDDINGS
-        ]
-
-        best_idx = int(np.argmax(scores))
-
-        return [KB[best_idx]["text"]]
-
-    except Exception:
+def retrieve_answer(text: str, category: str, top_k: int = 1) -> List[str]:
+    if not text:
         return []
+
+    query_emb = embed_text(text)
+
+    # фильтрация по категории из classifier
+    candidates = [
+        (idx, item)
+        for idx, item in enumerate(KB)
+        if item["category"] == category
+    ]
+
+    if not candidates:
+        return []
+
+    scored = []
+
+    for idx, _ in candidates:
+        score = cosine(query_emb, KB_EMBEDDINGS[idx])
+        scored.append((idx, score))
+
+    scored.sort(key=lambda x: x[1], reverse=True)
+
+    return [KB[idx]["text"] for idx, _ in scored[:top_k]]
