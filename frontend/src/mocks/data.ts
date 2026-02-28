@@ -11,7 +11,6 @@ export const mockCategories: string[] = [
   "Другое",
 ];
 
-// Здесь я вручную исправил статусы ai_processed на new, чтобы исходные данные были чистыми
 export const mockTickets: Ticket[] = [
   {
     id: 1,
