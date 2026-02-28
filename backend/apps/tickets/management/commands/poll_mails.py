@@ -5,6 +5,8 @@ from apps.integrations.email_client import EmailService
 from apps.integrations.ai_service import JarvisService
 from apps.tickets.models import Ticket, Message
 
+from backend.jarvis.app.services.pipeline import process_email
+
 
 class Command(BaseCommand):
     help = 'Polls emails and processes them with Jarvis AI'
@@ -47,10 +49,8 @@ class Command(BaseCommand):
                         self.stdout.write(f"Processing Ticket #{ticket.id}...")
 
                         # 3. ВЫЗЫВАЕМ JARVIS
-                        # Объединяем тему и тело для анализа
-                        full_text = f"{ticket.subject}\n\n{ticket.raw_body}"
 
-                        ai_result = JarvisService.process_ticket(full_text)
+                        ai_result = process_email(ticket.raw_body)
 
                         if ai_result:
                             # 4. Обновляем тикет данными от AI
