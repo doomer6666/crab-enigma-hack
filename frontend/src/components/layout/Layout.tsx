@@ -6,6 +6,7 @@ import {
   FlaskConical,
   PanelLeftClose,
   PanelLeftOpen,
+  BarChart3, // Новая иконка
 } from "lucide-react";
 import "./Layout.css";
 
@@ -20,7 +21,7 @@ export const Layout: React.FC<Props> = ({
   currentPage,
   onNavigate,
 }) => {
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <div className={`layout ${collapsed ? "sidebar-collapsed" : ""}`}>
@@ -42,6 +43,17 @@ export const Layout: React.FC<Props> = ({
             <ClipboardList size={18} />
             <span className="nav-label">Обращения</span>
           </button>
+
+          {/* НОВЫЙ ПУНКТ МЕНЮ */}
+          <button
+            className={`nav-item ${currentPage === "analytics" ? "active" : ""}`}
+            onClick={() => onNavigate("analytics")}
+            title="Аналитика"
+          >
+            <BarChart3 size={18} />
+            <span className="nav-label">Аналитика</span>
+          </button>
+
           <button
             className={`nav-item ${currentPage === "knowledge" ? "active" : ""}`}
             onClick={() => onNavigate("knowledge")}
