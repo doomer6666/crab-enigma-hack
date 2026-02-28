@@ -89,7 +89,6 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
   const statusLabels = ["Новые", "AI Обработано", "В работе", "Решено"];
   const statusSeries = [
     stats.byStatus["new"] || 0,
-    stats.byStatus["ai_processed"] || 0,
     stats.byStatus["in_progress"] || 0,
     stats.byStatus["resolved"] || 0,
   ];

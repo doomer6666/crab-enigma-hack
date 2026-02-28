@@ -21,7 +21,6 @@ export interface Ticket {
 
 export type TicketStatus =
   | "new"
-  | "ai_processed"
   | "in_progress"
   | "awaiting_reply"
   | "resolved";
