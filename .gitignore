@@ -194,3 +194,4 @@ uploads/
 #.dockerignore
 #Dockerfile
 #docker-compose*.yml
+/backend/jarvis/model.safetensors
