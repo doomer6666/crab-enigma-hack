@@ -51,7 +51,6 @@ def retrieve_answer(text: str, category: str, top_k: int = 1) -> List[str]:
 
     query_emb = embed_text(text)
 
-    # фильтрация по категории из classifier
     candidates = [
         (idx, item)
         for idx, item in enumerate(KB)

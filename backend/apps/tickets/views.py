@@ -8,7 +8,20 @@ from .models import Ticket, Message
 from .serializers import TicketSerializer, MessageSerializer
 from .pagination import StandardResultsSetPagination
 from apps.integrations.email_client import EmailService
+from django.db.models import Count
+from rest_framework.views import APIView
 
+class StatsView(APIView):
+    def get(self, request):
+        total = Ticket.objects.count()
+        by_status = Ticket.objects.values('status').annotate(count=Count('id'))
+        by_priority = Ticket.objects.values('priority').annotate(count=Count('id'))
+
+        return Response({
+            "total_tickets": total,
+            "status_distribution": {item['status']: item['count'] for item in by_status},
+            "priority_distribution": {item['priority']: item['count'] for item in by_priority}
+        })
 
 class TicketViewSet(viewsets.ModelViewSet):
     queryset = Ticket.objects.all()

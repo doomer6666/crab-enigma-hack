@@ -28,21 +28,16 @@ class JarvisDataEntity:
 
 
 def process_email(text):
-    # Извлекаем сущности из письма
     entities = extract_entities(text)
 
-    # Определяем категорию письма
     category = predict_topic(text)
 
-    # Определяем тон письма
     resolver = ToneResolver()
     tone = resolver.resolve(text)
 
-    # Получаем ответ из базы знаний
     kb = retrieve_answer(text, category)
     reply = generate_reply(category, kb)
 
-    # Возвращаем объект с данными
     return JarvisDataEntity(
         sender_name=entities.name,
         phone=entities.phone,
