@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15
@@ -40,15 +38,10 @@ services:
       - "80:80"
     depends_on:
       - backend
+      - db
     volumes:
       - static_volume:/app/static
 
-  jarvis:
-    build: ./jarvis
-    container_name: jarvis_jarvis
-    ports:
-      - "8001:8001"
-    restart: always
 
 volumes:
   postgres_data:
