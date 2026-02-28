@@ -13,19 +13,10 @@ import * as XLSX from "xlsx";
 
 const delay = (ms: number = 300) => new Promise((r) => setTimeout(r, ms));
 
-// Чистим данные при старте:
-// 1. closed -> resolved
-// 2. ai_processed -> new (как ты просил)
-let tickets = mockTickets.map((t) => {
-  let status = t.status as string;
-  if (status === "closed") status = "resolved";
-  if (status === "ai_processed") status = "new";
-
-  return {
-    ...t,
-    status: status as any, // Приводим к типу TicketStatus
-  };
-});
+let tickets = mockTickets.map((t) => ({
+  ...t,
+  status: (t.status as string) === "closed" ? "resolved" : t.status,
+}));
 
 let messageStore = { ...mockMessages };
 let nextMsgId = 100;
@@ -73,21 +64,19 @@ export const mockApi = {
 
     if (filters.status) {
       if (filters.status === "active") {
-        // Активные = не решенные
-        result = result.filter((t) => t.status !== "resolved");
+        result = result.filter(
+          (t) => t.status !== "resolved" && (t.status as string) !== "closed",
+        );
       } else {
         result = result.filter((t) => t.status === filters.status);
       }
     }
-
     if (filters.priority) {
       result = result.filter((t) => t.priority === filters.priority);
     }
-
     if (filters.sentiment) {
       result = result.filter((t) => t.sentiment === filters.sentiment);
     }
-
     if (filters.search) {
       const q = filters.search.toLowerCase();
       result = result.filter(
@@ -236,7 +225,7 @@ export const mockApi = {
 
       bySentiment[t.sentiment] = (bySentiment[t.sentiment] || 0) + 1;
 
-      if (t.status !== "resolved") {
+      if (t.status !== "resolved" && (t.status as string) !== "closed") {
         byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
       }
     });

@@ -79,23 +79,21 @@ export const realApi = {
   async getTickets(filters: TicketFilters): Promise<TicketListResponse> {
     const params = new URLSearchParams();
 
-    // Статус (если "active", бэкенд должен уметь это обрабатывать или фильтровать != resolved)
-    // Либо здесь можно было бы слать status__ne=resolved, если бэк на Django Filter.
-    // Но предположим, бэк ждет просто 'status'.
-    if (filters.status) params.set("status", filters.status);
+    if (filters.status && filters.status !== "active") {
+      params.set("status", filters.status);
+    }
 
     if (filters.priority) params.set("priority", filters.priority);
 
-    // ДОБАВЛЕНО: Сентимент
     if (filters.sentiment) params.set("sentiment", filters.sentiment);
 
     if (filters.search) params.set("search", filters.search);
 
-    // Пагинация
-    params.set("page", String(filters.page));
-    params.set("size", String(filters.size));
+    const isClientFilter = filters.status === "active" || filters.sentiment;
 
-    // ДОБАВЛЕНО: Сортировка
+    params.set("page", isClientFilter ? "1" : String(filters.page));
+    params.set("size", isClientFilter ? "1000" : String(filters.size));
+
     if (filters.sortBy) params.set("sort_by", filters.sortBy);
     if (filters.sortDir) params.set("sort_dir", filters.sortDir);
 
@@ -106,10 +104,21 @@ export const realApi = {
       if (!res.ok) return { items: [], total: 0 };
 
       const data = await res.json();
-      const items = extractArray<Ticket>(data);
-      const total = extractTotal(data);
+      let items = extractArray<Ticket>(data);
+      let total = extractTotal(data);
 
-      // Кэшируем для экспорта, если это "чистый" список
+      if (filters.status === "active") {
+        items = items.filter(
+          (t) => t.status !== "resolved" && (t.status as string) !== "closed",
+        );
+        total = items.length;
+      }
+
+      if (filters.sentiment) {
+        items = items.filter((t) => t.sentiment === filters.sentiment);
+        total = items.length;
+      }
+
       if (
         !filters.status &&
         !filters.priority &&
@@ -184,7 +193,6 @@ export const realApi = {
     }
 
     try {
-      // Меняем статус на 'awaiting_reply' или 'in_progress' при ответе
       const res = await fetch(`${BASE}/tickets/${ticketId}/`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -232,7 +240,6 @@ export const realApi = {
       /* ignore */
     }
 
-    // Fallback: считаем из тикетов
     try {
       const res = await fetch(`${BASE}/tickets/?size=1000&page=1`, {
         headers: { "Content-Type": "application/json" },
@@ -264,7 +271,11 @@ export const realApi = {
         const catName = t.category || "Другое";
         byCategory[catName] = (byCategory[catName] || 0) + 1;
 
-        if (t.status !== "resolved" && t.priority) {
+        if (
+          t.status !== "resolved" &&
+          (t.status as string) !== "closed" &&
+          t.priority
+        ) {
           byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
         }
       });
