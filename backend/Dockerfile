@@ -17,6 +17,12 @@ RUN uv pip install --system -r requirements.txt
 # скопировать код проекта
 COPY . .
 
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Запускаем его
+ENTRYPOINT ["/entrypoint.sh"]
+
 EXPOSE 8000
 
 CMD sh -c "python manage.py collectstatic --noinput && \

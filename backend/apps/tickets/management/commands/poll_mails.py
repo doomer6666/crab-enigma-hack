@@ -2,10 +2,9 @@ import time
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from apps.integrations.email_client import EmailService
-from apps.integrations.ai_service import JarvisService
 from apps.tickets.models import Ticket, Message
 
-from backend.jarvis.app.services.pipeline import process_email
+from jarvis.app.services.pipeline import process_email
 
 
 class Command(BaseCommand):
@@ -72,7 +71,7 @@ class Command(BaseCommand):
                     # self.stdout.write("No emails...")
                     pass
 
-                time.sleep(10)  # Пауза 10 сек
+                time.sleep(1)  # Пауза 10 сек
 
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Loop error: {e}"))

@@ -37,7 +37,7 @@ def extract_item_type(text, models):
                 return model
     return None
 
-def extract_entities(text, models):
+def extract_entities(text, models = None):
     result = ExtractedEmail()
 
     name = re.search(NAME_REGEX, text)
@@ -54,8 +54,9 @@ def extract_entities(text, models):
 
     result.serial_number = extract_serial(text)
 
-    if models:
-        result.item_type = extract_item_type(text, models)
+    if not models:
+        models = read_models()
+    result.item_type = extract_item_type(text, models)
 
     return result
 
