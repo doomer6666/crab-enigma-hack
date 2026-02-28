@@ -7,16 +7,6 @@ from app.services.fallback import fallback_classification, fallback_reply
 from app.core.config import settings
 
 
-class ExtractedEmail:
-    def __init__(self, text):
-        self.text = text
-        self.entities = []
-        self.category = None
-        self.tone = None
-        self.kb_context = []
-        self.reply = None
-
-
 app = FastAPI(title="Jarvis ML Service")
 
 
