@@ -1,17 +1,20 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 django
 djangorestframework
 django-cors-headers
 psycopg2-binary
 python-dotenv
-openpyxl
 django-environ
-gunicorn
 django-filter
 drf-spectacular
 fastapi
 uvicorn
 pydantic
-transformers
 torch
+torchvision
+transformers
+gunicorn
+openpyxl
 requests
 beautifulsoup4
+numpy
