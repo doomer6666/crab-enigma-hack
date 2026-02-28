@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type { TicketFilters, Ticket } from "../types";
 
-// ... (Остальные хуки useTickets, useTicket, useStats, useTicketMessages остаются без изменений) ...
+// --- Queries ---
 
 export const useTickets = (filters: TicketFilters) => {
   return useQuery({
@@ -38,7 +38,6 @@ export const useTicketMessages = (ticketId: number) => {
 
 // --- Mutations ---
 
-// НОВЫЙ ХУК: Универсальное обновление тикета
 export const useUpdateTicket = () => {
   const queryClient = useQueryClient();
 
@@ -46,10 +45,7 @@ export const useUpdateTicket = () => {
     mutationFn: ({ id, updates }: { id: number; updates: Partial<Ticket> }) =>
       api.updateTicket(id, updates),
     onSuccess: (updatedTicket) => {
-      // Обновляем данные в кэше конкретного тикета
       queryClient.setQueryData(["ticket", updatedTicket.id], updatedTicket);
-
-      // Инвалидируем списки и статистику
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
@@ -60,20 +56,33 @@ export const useSendReply = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ ticketId, text }: { ticketId: number; text: string }) =>
-      api.sendReply(ticketId, text),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["messages", variables.ticketId],
-      });
+    mutationFn: async ({
+      ticketId,
+      text,
+    }: {
+      ticketId: number;
+      text: string;
+    }) => {
+      // Сначала отправляем сообщение
+      await api.sendReply(ticketId, text);
+      // Возвращаем ID для контекста
+      return ticketId;
+    },
+    onSuccess: (ticketId) => {
+      // 1. Обновляем сообщения
+      queryClient.invalidateQueries({ queryKey: ["messages", ticketId] });
 
-      // Optimistic update for status
+      // 2. ПРИНУДИТЕЛЬНО обновляем статус тикета в кэше на "Ожидает ответа"
+      // Это мгновенно перерисует бейдж в TicketDetail
       queryClient.setQueryData(
-        ["ticket", variables.ticketId],
-        (old: Ticket | undefined) =>
-          old ? { ...old, status: "awaiting_reply" } : undefined,
+        ["ticket", ticketId],
+        (oldData: Ticket | undefined) => {
+          if (!oldData) return undefined;
+          return { ...oldData, status: "awaiting_reply" as const };
+        },
       );
 
+      // 3. Обновляем списки
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
@@ -86,11 +95,15 @@ export const useResolveTicket = () => {
   return useMutation({
     mutationFn: (ticketId: number) => api.resolveTicket(ticketId),
     onSuccess: (_, ticketId) => {
+      // Принудительно ставим "Решено"
       queryClient.setQueryData(
         ["ticket", ticketId],
-        (old: Ticket | undefined) =>
-          old ? { ...old, status: "resolved" } : undefined,
+        (oldData: Ticket | undefined) => {
+          if (!oldData) return undefined;
+          return { ...oldData, status: "resolved" as const };
+        },
       );
+
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
