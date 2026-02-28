@@ -1,24 +1,18 @@
 from rest_framework import serializers
-from .models import Ticket, Category, Message
+from .models import Ticket, Message
 from apps.users.models import User
 
-class CategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Category
-        fields = ['id', 'name', 'description']
 
 class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
-        fields = ['id', 'sender_email', 'text', 'is_incoming', 'created_at']
+        fields = [
+            'id', 'ticket_id', 'direction', 'sender',
+            'recipient', 'subject', 'body_text', 'sent_at', 'created_at'
+        ]
+
 
 class TicketSerializer(serializers.ModelSerializer):
-    # Вложенный объект для чтения
-    category = CategorySerializer(read_only=True)
-    # Поле ID для записи (PATCH запросы)
-    category_id = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.all(), source='category', write_only=True, required=False, allow_null=True
-    )
     assigned_to = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(), required=False, allow_null=True
     )
@@ -27,8 +21,12 @@ class TicketSerializer(serializers.ModelSerializer):
         model = Ticket
         fields = [
             'id', 'subject', 'sender_email', 'sender_name',
-            'category', 'category_id', # оба поля
-            'priority', 'sentiment', 'confidence',
-            'status', 'ai_draft', 'assigned_to',
+            'phone', 'object_name', 'serial_numbers', 'device_type', 'description',
+
+            'category',  # Вернет "Неисправность"
+
+            'priority', 'sentiment',
+            'confidence', 'status', 'ai_draft', 'assigned_to',
             'received_at', 'created_at', 'updated_at'
         ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
