@@ -31,18 +31,15 @@ def cosine_similarity(v1, v2_matrix):
     v2_normalized = v2_matrix / v2_norms[:, np.newaxis]
     return np.dot(v2_normalized, v1_norm)
 
-def predict_topic(email_text: str, threshold=0.45): # Подняли порог еще чуть-чуть
-    # 1. Очистка от мусора (телефоны, ООО, лишние крики)
-    clean_text = re.sub(r'\+?\d[\d\-\(\) ]{7,15}', '', email_text) # Удаляем телефоны
-    clean_text = re.sub(r'ООО\s+["\w]+', '', clean_text)          # Удаляем названия компаний
+def predict_topic(email_text: str, threshold=0.45):
+    clean_text = re.sub(r'\+?\d[\d\-\(\) ]{7,15}', '', email_text)
+    clean_text = re.sub(r'ООО\s+["\w]+', '', clean_text)
     
     sentences = re.split(r'[.!?\n]', clean_text)
     
-    # Игнорируем слишком короткие и чисто цифровые строки
     valid_sentences = []
     for s in sentences:
         s = s.strip()
-        # Если в предложении меньше 12 символов или это просто набор цифр/имен - скипаем
         if len(s) > 12 and not s.isdigit():
             valid_sentences.append(s)
     
@@ -59,8 +56,6 @@ def predict_topic(email_text: str, threshold=0.45): # Подняли порог 
     best_topic = max(topic_scores, key=topic_scores.get)
     max_score = topic_scores[best_topic]
 
-    # Если это просто крик "НЕ РАБОТАЕТ" без конкретики, 
-    # score будет в районе 0.35-0.43, что ниже нашего порога 0.48
     print(max_score)
     if max_score < threshold:
         return "Другое"
