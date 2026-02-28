@@ -58,28 +58,28 @@ class Command(BaseCommand):
                                 # 4. Обновляем тикет данными от AI
                                 # Используем getattr, чтобы не упасть, если поле None или отсутствует
 
-                                # Основные поля классификации
+                                self.stdout.write(self.style.ERROR(f"Proccessed without errors"))
+                                # Основные поля
                                 ticket.category = getattr(ai_result, 'category', 'Другое') or 'Другое'
                                 ticket.sentiment = getattr(ai_result, 'sentiment', 'neutral') or 'neutral'
                                 ticket.confidence = getattr(ai_result, 'confidence', 0.0) or 0.0
                                 ticket.ai_draft = getattr(ai_result, 'ai_draft', '') or ''
-
-                                # В твоем классе JarvisDataEntity НЕТ поля priority, ставим дефолт
                                 ticket.priority = 'medium'
 
-                                # Дополнительные поля (сущности), которые извлек AI
+                                # Сущности
                                 ticket.phone = getattr(ai_result, 'phone', None)
                                 ticket.object_name = getattr(ai_result, 'object_name', None)
                                 ticket.serial_numbers = getattr(ai_result, 'serial_numbers', None)
                                 ticket.device_type = getattr(ai_result, 'device_type', None)
 
-                                # Если AI нашел имя отправителя в тексте (подпись), можно обновить
+                                # description УБРАЛИ (не сохраняем)
+
+                                # Обновляем имя отправителя если нашли
                                 ai_sender_name = getattr(ai_result, 'sender_name', None)
                                 if ai_sender_name:
                                     ticket.sender_name = ai_sender_name
 
-                                # Меняем статус и сохраняем
-                                ticket.status = Ticket.Status.AI_PROCESSED
+                                ticket.status = Ticket.Status.AWAITING_REPLY
                                 ticket.save()
 
                                 self.stdout.write(self.style.SUCCESS(
