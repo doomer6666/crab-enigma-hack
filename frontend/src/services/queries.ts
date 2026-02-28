@@ -18,6 +18,9 @@ export const useTicket = (id: number, initialData?: Ticket) => {
     queryFn: () => api.getTicket(id),
     initialData: initialData,
     enabled: !!id,
+    // Важно: если данные пришли из таблицы, они могут быть устаревшими.
+    // StaleTime 0 заставит React Query сразу сделать запрос за свежими данными
+    staleTime: 0,
   });
 };
 
@@ -45,7 +48,9 @@ export const useUpdateTicket = () => {
     mutationFn: ({ id, updates }: { id: number; updates: Partial<Ticket> }) =>
       api.updateTicket(id, updates),
     onSuccess: (updatedTicket) => {
+      // Обновляем конкретный тикет данными от сервера
       queryClient.setQueryData(["ticket", updatedTicket.id], updatedTicket);
+      // Инвалидируем списки
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
@@ -56,33 +61,31 @@ export const useSendReply = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      ticketId,
-      text,
-    }: {
-      ticketId: number;
-      text: string;
-    }) => {
-      // Сначала отправляем сообщение
-      await api.sendReply(ticketId, text);
-      // Возвращаем ID для контекста
-      return ticketId;
-    },
-    onSuccess: (ticketId) => {
-      // 1. Обновляем сообщения
-      queryClient.invalidateQueries({ queryKey: ["messages", ticketId] });
-
-      // 2. ПРИНУДИТЕЛЬНО обновляем статус тикета в кэше на "Ожидает ответа"
-      // Это мгновенно перерисует бейдж в TicketDetail
+    mutationFn: ({ ticketId, text }: { ticketId: number; text: string }) =>
+      api.sendReply(ticketId, text),
+    // data - ответ от api.sendReply
+    // variables - то, что мы передали в mutate ({ ticketId, text })
+    onSuccess: (_data, variables) => {
+      // 1. МГНОВЕННОЕ ОБНОВЛЕНИЕ СТАТУСА В UI
       queryClient.setQueryData(
-        ["ticket", ticketId],
-        (oldData: Ticket | undefined) => {
-          if (!oldData) return undefined;
-          return { ...oldData, status: "awaiting_reply" as const };
+        ["ticket", variables.ticketId],
+        (old: Ticket | undefined) => {
+          if (!old) return undefined;
+          // Жестко ставим статус "Ожидает", не дожидаясь ответа сервера
+          return {
+            ...old,
+            status: "awaiting_reply" as const,
+            updated_at: new Date().toISOString(),
+          };
         },
       );
 
-      // 3. Обновляем списки
+      // 2. Обновляем сообщения (подтянется новое отправленное)
+      queryClient.invalidateQueries({
+        queryKey: ["messages", variables.ticketId],
+      });
+
+      // 3. Обновляем список тикетов и статистику в фоне
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
@@ -95,12 +98,16 @@ export const useResolveTicket = () => {
   return useMutation({
     mutationFn: (ticketId: number) => api.resolveTicket(ticketId),
     onSuccess: (_, ticketId) => {
-      // Принудительно ставим "Решено"
+      // МГНОВЕННОЕ ОБНОВЛЕНИЕ СТАТУСА В UI
       queryClient.setQueryData(
         ["ticket", ticketId],
-        (oldData: Ticket | undefined) => {
-          if (!oldData) return undefined;
-          return { ...oldData, status: "resolved" as const };
+        (old: Ticket | undefined) => {
+          if (!old) return undefined;
+          return {
+            ...old,
+            status: "resolved" as const,
+            updated_at: new Date().toISOString(),
+          };
         },
       );
 
