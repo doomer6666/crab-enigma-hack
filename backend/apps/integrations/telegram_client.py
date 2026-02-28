@@ -23,7 +23,6 @@ def send_telegram_alert(ticket):
         f"👤 От: {ticket.sender_name} ({ticket.sender_email})\n"
         f"🏢 Объект: {ticket.object_name or 'Не указан'}\n"
         f"📝 Тема: {ticket.subject}\n"
-        f"📉 Уверенность AI: {int(ticket.confidence * 100)}%\n\n"
     )
 
     # Получаем всех подписчиков
