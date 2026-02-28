@@ -8,3 +8,8 @@ django-environ
 gunicorn
 django-filter
 drf-spectacular
+fastapi
+uvicorn
+pydantic
+transformers
+torch
