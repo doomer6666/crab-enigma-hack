@@ -75,3 +75,17 @@ body {
   font-size: 13px;
   margin: 2px 0 0;
 }
+
+@media (max-height: 800px) {
+  .page-header {
+    margin-bottom: 12px;
+  }
+
+  .page-header h1 {
+    font-size: 18px;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+  }
+}

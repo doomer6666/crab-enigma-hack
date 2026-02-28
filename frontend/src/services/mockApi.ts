@@ -20,19 +20,19 @@ let nextMsgId = 100;
 
 function ticketsToRows(data: Ticket[]) {
   return data.map((t) => ({
-    ID: t.id,
-    Тема: t.subject,
-    "Email отправителя": t.sender_email,
-    "Имя отправителя": t.sender_name || "",
+    Дата: t.received_at ? new Date(t.received_at).toLocaleString("ru-RU") : "",
+    ФИО: t.sender_name,
+    Объект: t.object_name || "",
+    Телефон: t.phone || "",
+    Email: t.sender_email,
+    "Заводские номера": t.serial_numbers || "",
+    "Тип прибора": t.device_type || "",
+    "Эмоциональный окрас": t.sentiment,
     Категория: t.category?.name || "",
     Приоритет: t.priority,
-    Тональность: t.sentiment,
-    "AI уверенность": t.confidence ? `${Math.round(t.confidence * 100)}%` : "",
     Статус: t.status,
-    "Дата получения": t.received_at
-      ? new Date(t.received_at).toLocaleString("ru-RU")
-      : "",
-    "Дата создания": new Date(t.created_at).toLocaleString("ru-RU"),
+    "AI уверенность": t.confidence ? `${Math.round(t.confidence * 100)}%` : "",
+    "Суть вопроса": t.description || t.subject,
   }));
 }
 
@@ -66,7 +66,12 @@ export const mockApi = {
         (t) =>
           t.subject.toLowerCase().includes(q) ||
           t.sender_email.toLowerCase().includes(q) ||
-          (t.sender_name || "").toLowerCase().includes(q),
+          t.sender_name.toLowerCase().includes(q) ||
+          (t.object_name || "").toLowerCase().includes(q) ||
+          (t.serial_numbers || "").toLowerCase().includes(q) ||
+          (t.device_type || "").toLowerCase().includes(q) ||
+          (t.phone || "").includes(q) ||
+          (t.description || "").toLowerCase().includes(q),
       );
     }
 
@@ -149,14 +154,23 @@ export const mockApi = {
     const byStatus: Record<string, number> = {};
     const byPriority: Record<string, number> = {};
     const bySentiment: Record<string, number> = {};
+    const byCategory: Record<string, number> = {};
 
     tickets.forEach((t) => {
       byStatus[t.status] = (byStatus[t.status] || 0) + 1;
       byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
       bySentiment[t.sentiment] = (bySentiment[t.sentiment] || 0) + 1;
+      const catName = t.category?.name || "Другое";
+      byCategory[catName] = (byCategory[catName] || 0) + 1;
     });
 
-    return { total: tickets.length, byStatus, byPriority, bySentiment };
+    return {
+      total: tickets.length,
+      byStatus,
+      byPriority,
+      bySentiment,
+      byCategory,
+    };
   },
 
   // ─── CSV экспорт ───

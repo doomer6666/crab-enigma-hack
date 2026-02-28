@@ -7,16 +7,35 @@ export interface Category {
 export interface Ticket {
   id: number;
   subject: string;
+
+  // Отправитель
+  sender_name: string;
   sender_email: string;
-  sender_name?: string;
-  category?: Category;
+  phone: string | null;
+
+  // Объект / предприятие
+  object_name: string | null;
+
+  // Оборудование
+  serial_numbers: string | null;
+  device_type: string | null;
+
+  // AI-классификация
+  category?: Category | null;
   priority: "low" | "medium" | "high" | "critical";
   sentiment: "positive" | "neutral" | "negative";
-  confidence?: number;
+  confidence?: number | null;
+
+  // Суть вопроса (краткое описание от AI)
+  description: string | null;
+
+  // Статус и ответ
   status: TicketStatus;
-  ai_draft?: string;
-  assigned_to?: number;
-  received_at?: string;
+  ai_draft?: string | null;
+  assigned_to?: number | null;
+
+  // Даты
+  received_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,4 +86,5 @@ export interface DashboardStats {
   byStatus: Record<string, number>;
   byPriority: Record<string, number>;
   bySentiment: Record<string, number>;
+  byCategory: Record<string, number>;
 }

@@ -116,3 +116,23 @@
         transform: rotate(360deg);
     }
 }
+
+@media (max-height: 800px) {
+    .editor-section {
+        padding: 10px 16px 16px;
+    }
+
+    .editor-textarea {
+        font-size: 12px;
+    }
+
+    .section-title {
+        font-size: 12px;
+        margin-bottom: 8px;
+    }
+
+    .btn-ai {
+        font-size: 11px;
+        padding: 4px 10px;
+    }
+}
