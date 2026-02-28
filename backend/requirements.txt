@@ -19,3 +19,11 @@ requests
 beautifulsoup4
 numpy
 pyTelegramBotAPI
+python-dotenv
+langchain-groq
+langchain-huggingface
+langchain-community
+langchain-text-splitters
+faiss-cpu
+pdfplumber
+sentence-transformers

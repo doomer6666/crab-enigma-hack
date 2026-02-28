@@ -12,7 +12,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 warnings.filterwarnings("ignore", category=UserWarning)
 load_dotenv()
 
-# --- ПУТИ ---
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.abspath(os.path.join(CURRENT_DIR, "../../jarvis_big_brother"))
 BACKEND_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", "..", ".."))
@@ -28,7 +27,6 @@ class RagService:
             model_name=MODEL_PATH,
             model_kwargs={'device': 'cpu'}
         )
-        # Увеличиваем размер чанка для таблиц
         self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=300)
 
         if os.path.exists(DB_DIR) and len(os.listdir(DB_DIR)) > 0:
@@ -48,7 +46,6 @@ class RagService:
         for file_name in files:
             try:
                 print(f"Глубокая обработка: {file_name}")
-                # PDFPlumber лучше держит структуру текста
                 loader = PDFPlumberLoader(os.path.join(PDF_DIR, file_name))
                 pages = loader.load()
                 
@@ -88,15 +85,12 @@ class RagService:
         
         selected_file = self._route_to_file(device, all_files)
 
-        # ШАГ 1: Позволяем LLM переформулировать запрос для лучшего поиска
         search_prompt = f"Вопрос пользователя: '{issue}'. Напиши 3-4 ключевых слова или фразы на русском, которые могут встретиться в технической инструкции для ответа на этот вопрос. Пиши только слова через пробел."
         search_query_refined = self.llm.invoke(search_prompt).content.strip()
         
-        # КРИТИЧЕСКИ ВАЖНО: используем расширенный запрос
         final_query = f"query: {issue} {search_query_refined}"
         print(f"[DEBUG] Расширенный запрос: {final_query}")
 
-        # ШАГ 2: Ищем больше чанков (k=15), чтобы дать LLM пространство для маневра
         docs_with_scores = self.vector_db.similarity_search_with_score(
             final_query, 
             k=15, 
@@ -105,16 +99,13 @@ class RagService:
         final_docs = [doc for doc, score in docs_with_scores]
 
         if not final_docs:
-             # Если с фильтром ничего, пробуем без него
              final_docs = self.vector_db.similarity_search(final_query, k=5)
 
-        # Собираем контекст
         context_text = ""
         for i, d in enumerate(final_docs):
             content = d.page_content.replace("passage: ", "")
             context_text += f"\n[Источник: {d.metadata.get('source')}, Стр: {d.metadata.get('page', 0)+1}]\n{content}\n"
 
-        # ШАГ 3: Финальный разбор LLM
         system_msg = (
             "Ты — ведущий эксперт техподдержки ЭРИС. Ты работаешь с технической документацией.\n"
             "Твоя задача: найти ответ на вопрос в предоставленных отрывках текста.\n"
@@ -141,11 +132,11 @@ class RagService:
 
         return {"answer": greeting + response.content, "sources": sources[:3]}
 
-# if __name__ == "__main__":
-#     service = RagService()
-#     test_entities = {
-#         "device": "Корректировочная станция Док ЭРИС-400",
-#         "issue": "Каковы условия транспортировки и хранения станции зимой?"
-#     }
-#     result = service.resolve_answer(test_entities, mood="negative")
-#     print("\n" + "="*60 + f"\nОТВЕТ:\n{result['answer']}\n" + "="*60)
+if __name__ == "__main__":
+    service = RagService()
+    test_entities = {
+        "device": "Корректировочная станция Док ЭРИС-400",
+        "issue": "Каковы условия транспортировки и хранения станции зимой?"
+    }
+    result = service.resolve_answer(test_entities, mood="negative")
+    print("\n" + "="*60 + f"\nОТВЕТ:\n{result['answer']}\n" + "="*60)

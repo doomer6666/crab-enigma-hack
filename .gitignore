@@ -198,3 +198,4 @@ uploads/
 /backend/jarvis/jarvis_core/model.safetensors
 /backend/jarvis/jarvis_core_alter/model.safetensors
 /backend/jarvis/jarvis_core_alter/pytorch_model.bin
+/backend/jarvis/jarvis_big_brother/
