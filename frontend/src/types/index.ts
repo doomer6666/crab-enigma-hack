@@ -11,7 +11,6 @@ export interface Ticket {
   priority: "low" | "medium" | "high" | "critical";
   sentiment: "positive" | "neutral" | "negative";
   confidence?: number | null;
-  description: string | null;
   status: TicketStatus;
   ai_draft?: string | null;
   assigned_to?: number | null;
@@ -22,11 +21,9 @@ export interface Ticket {
 
 export type TicketStatus =
   | "new"
-  | "ai_processed"
   | "in_progress"
   | "awaiting_reply"
-  | "resolved"
-  | "closed";
+  | "resolved";
 
 export interface TicketListResponse {
   items: Ticket[];

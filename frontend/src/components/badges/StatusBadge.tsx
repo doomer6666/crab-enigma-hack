@@ -1,5 +1,5 @@
 import React from "react";
-import { CircleDot, Bot, Wrench, Clock, CheckCircle, Lock } from "lucide-react";
+import { CircleDot, Wrench, Clock, CheckCircle } from "lucide-react";
 import type { TicketStatus } from "../../types";
 import "./Badges.css";
 
@@ -11,11 +11,6 @@ const STATUS_CONFIG: Record<
     label: "Новый",
     className: "badge-new",
     icon: <CircleDot size={12} />,
-  },
-  ai_processed: {
-    label: "AI обработан",
-    className: "badge-ai",
-    icon: <Bot size={12} />,
   },
   in_progress: {
     label: "В работе",
@@ -31,11 +26,6 @@ const STATUS_CONFIG: Record<
     label: "Решён",
     className: "badge-resolved",
     icon: <CheckCircle size={12} />,
-  },
-  closed: {
-    label: "Закрыт",
-    className: "badge-closed",
-    icon: <Lock size={12} />,
   },
 };
 

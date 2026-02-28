@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from "react";
 import { ClipboardList } from "lucide-react";
 import { Dashboard } from "../components/dashboard/Dashboard";
-import { TicketTable } from "../components/ticket/ticket-table/TicketTable";
 import { TicketDetail } from "../components/ticket/ticket-detail/TicketDetail";
+import { TicketTable } from "../components/ticket/ticket-table/TicketTable";
 import type { Ticket } from "../types";
 
 export const TicketsPage: React.FC = () => {
@@ -21,7 +21,7 @@ export const TicketsPage: React.FC = () => {
         <div>
           <h1>Обращения</h1>
           <p className="page-subtitle">
-            Входящие письма технической поддержки ООО "ЭРИС"
+            Входящие письма техподдержки, обработанные AI-агентом JARVIS
           </p>
         </div>
       </div>

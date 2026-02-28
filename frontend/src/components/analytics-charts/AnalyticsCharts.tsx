@@ -2,8 +2,7 @@ import React from "react";
 import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
 import type { DashboardStats } from "../../types";
-
-// Хак для совместимости типов react-apexcharts с React 19
+import "./AnalyticsCharts.css";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ReactApexChart = (Chart as any).default || Chart;
 
@@ -26,12 +25,14 @@ const SENTIMENT_COLORS = {
   negative: "#ef4444",
 };
 
-// Контейнер для графиков
 const chartContainerStyle: React.CSSProperties = {
   flex: 1,
   minHeight: 0,
   width: "100%",
-  display: "block",
+  position: "relative",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
 };
 
 export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
@@ -39,7 +40,7 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
     return <div>Загрузка данных...</div>;
   }
 
-  // === 1. Категории (Без изменений) ===
+  // === 1. Категории ===
   const categoriesSorted = Object.entries(stats.byCategory).sort(
     ([, valA], [, valB]) => valB - valA,
   );
@@ -56,7 +57,7 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
       bar: {
         horizontal: true,
         borderRadius: 3,
-        barHeight: "75%",
+        barHeight: "70%",
         distributed: true,
       },
     },
@@ -69,13 +70,13 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
     yaxis: {
       labels: {
         style: { colors: "#e2e8f0", fontSize: "11px" },
-        maxWidth: 150,
+        maxWidth: 130,
       },
     },
     grid: {
       borderColor: "#2e3b52",
       xaxis: { lines: { show: true } },
-      padding: { left: -10, right: 0, top: 0, bottom: 0 },
+      padding: { left: -10, right: 10, top: 0, bottom: 0 },
     },
     tooltip: { theme: "dark" },
     legend: { show: false },
@@ -84,7 +85,7 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
     { name: "Обращений", data: categoriesSorted.map(([, v]) => v) },
   ];
 
-  // === 2. Статусы (FIX: Уменьшен масштаб до 0.9) ===
+  // === 2. Статусы ===
   const statusLabels = ["Новые", "AI Обработано", "В работе", "Решено"];
   const statusSeries = [
     stats.byStatus["new"] || 0,
@@ -99,10 +100,10 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
     colors: [COLORS[4], COLORS[1], COLORS[3], COLORS[2]],
     plotOptions: {
       pie: {
-        customScale: 0.9, // <-- Уменьшили до 90%
-        offsetY: 0, // <-- Убрали смещение
+        customScale: 1,
+        offsetY: 0,
         donut: {
-          size: "70%",
+          size: "65%",
           labels: {
             show: true,
             total: {
@@ -126,12 +127,12 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
     legend: {
       position: "bottom",
       labels: { colors: "#94a3b8" },
-      itemMargin: { horizontal: 10, vertical: 5 },
+      itemMargin: { horizontal: 10, vertical: 0 },
     },
-    grid: { padding: { top: 0, bottom: 0 } },
+    grid: { padding: { top: 0, bottom: 0, left: 0, right: 0 } },
   };
 
-  // === 3. Приоритеты (Без изменений) ===
+  // === 3. Приоритеты ===
   const priorityOrder = ["critical", "high", "medium", "low"];
   const priorityLabels = ["Критич.", "Высокий", "Средний", "Низкий"];
   const priorityValues = priorityOrder.map((key) => stats.byPriority[key] || 0);
@@ -145,7 +146,7 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
     },
     theme: { mode: "dark" },
     plotOptions: {
-      bar: { borderRadius: 4, columnWidth: "65%", distributed: true },
+      bar: { borderRadius: 4, columnWidth: "55%", distributed: true },
     },
     colors: [COLORS[4], COLORS[3], COLORS[0], COLORS[2]],
     dataLabels: { enabled: false },
@@ -156,14 +157,14 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
     yaxis: { show: false },
     grid: {
       show: false,
-      padding: { left: -10, right: 0, top: 0, bottom: 0 },
+      padding: { left: 0, right: 0, top: 0, bottom: 0 },
     },
     tooltip: { theme: "dark" },
     legend: { show: false },
   };
   const prioritySeries = [{ name: "Активные", data: priorityValues }];
 
-  // === 4. Тональность (FIX: Уменьшен масштаб до 0.9) ===
+  // === 4. Тональность ===
   const sentimentSeries = [
     stats.bySentiment["positive"] || 0,
     stats.bySentiment["neutral"] || 0,
@@ -182,10 +183,10 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
     ],
     plotOptions: {
       pie: {
-        customScale: 0.9, // <-- Уменьшили до 90%
-        offsetY: 0, // <-- Убрали смещение
+        customScale: 1,
+        offsetY: 0,
         dataLabels: {
-          offset: -25,
+          offset: -20,
           minAngleToShowLabel: 10,
         },
       },
@@ -194,15 +195,15 @@ export const AnalyticsCharts: React.FC<Props> = ({ stats }) => {
     dataLabels: {
       enabled: true,
       dropShadow: { enabled: false },
-      style: { fontSize: "13px", fontWeight: 700, colors: ["#fff"] },
+      style: { fontSize: "12px", fontWeight: 700, colors: ["#fff"] },
     },
     legend: {
       position: "bottom",
       labels: { colors: "#94a3b8" },
-      itemMargin: { horizontal: 10, vertical: 5 },
+      itemMargin: { horizontal: 10, vertical: 0 },
     },
     tooltip: { theme: "dark" },
-    grid: { padding: { top: 0, bottom: 0 } },
+    grid: { padding: { top: 0, bottom: 0, left: 0, right: 0 } },
   };
 
   return (

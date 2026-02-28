@@ -47,10 +47,6 @@
     color: var(--warning);
 }
 
-.stat-icon-ai {
-    color: #a855f7;
-}
-
 .stat-icon-categories {
     color: var(--text-secondary);
 }
@@ -71,7 +67,6 @@
     white-space: nowrap;
 }
 
-/* Colors */
 .stat-active .stat-value {
     color: var(--accent);
 }
@@ -88,15 +83,10 @@
     color: var(--warning);
 }
 
-.stat-ai .stat-value {
-    color: #a855f7;
-}
-
 .stat-categories .stat-value {
     color: var(--text-primary);
 }
 
-/* Адаптив */
 @media (max-width: 768px) {
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
