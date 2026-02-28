@@ -1,8 +1,8 @@
-from app.services.classifier import classify
+from app.services.classifier import predict_topic
 from app.services.generator import generate_reply
 from app.services.kb_retriever import retrieve_answer
 from app.services.mail_extractor import extract_entities
-from app.services.tone_resolver import analyze_sentiment
+from app.services.tone_resolver import ToneResolver
 
 
 class JarvisDataEntity:
@@ -22,13 +22,18 @@ def process_email(text):
 
     entities = extract_entities(text)
 
-    category = classify(text)
+    category = predict_topic(text)
 
-    tone = analyze_sentiment(text)
+    resolver = ToneResolver()
+    tone = resolver.resolve(text)
 
     #kb = retrieve_answer(text, category)
 
+<<<<<<< HEAD
     #reply = generate_reply(text, category, kb)
+=======
+    reply = generate_reply(category, kb)
+>>>>>>> origin/jarvis
 
     reply = "Спасибо за ваше обращение. Мы уже работаем над решением вашей проблемы и свяжемся с вами в ближайшее время."
 

@@ -1,6 +1,7 @@
 import numpy as np
 from app.core.bert import embed_text
 
+
 class ToneResolver:
     def __init__(self):
         self.negative_triggers = ["ужас", "плохо", "не работает", "срочно", "невозможно", "возмущен"]
