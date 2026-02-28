@@ -7,7 +7,7 @@ NAME_REGEX = r"[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+"
 COMPANY_REGEX = r"(ООО|АО|ЗАО)\s+«[^»]+»"
 
 class ExtractedEmail:
-    def __init__(self, text):
+    def __init__(self):
         self.name = None
         self.phone = None
         self.company = None
@@ -38,7 +38,7 @@ def extract_item_type(text, models):
     return None
 
 def extract_entities(text, models):
-    result = ExtractedEmail(text)
+    result = ExtractedEmail()
 
     name = re.search(NAME_REGEX, text)
     if name:

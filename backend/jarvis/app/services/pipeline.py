@@ -6,9 +6,16 @@ from app.services.tone_resolver import analyze_sentiment
 
 
 class JarvisDataEntity:
-    def __init__(self, name, value):
-        self.name = name
-        self.value = value
+    def __init__(self):
+        self.sender_name = None
+        self.phone = None
+        self.object_name = None
+        self.serial_numbers = None
+        self.device_type = None
+        self.category = None
+        self.sentiment = None
+        self.confidence = None
+        self.ai_draft = None
 
 
 def process_email(text):
@@ -19,13 +26,18 @@ def process_email(text):
 
     tone = analyze_sentiment(text)
 
-    kb = retrieve_answer(text, category)
+    #kb = retrieve_answer(text, category)
 
-    reply = generate_reply(text, category, kb)
+    #reply = generate_reply(text, category, kb)
 
-    return {
-        "entities": entities,
-        "category": category,
-        "tone": tone,
-        "reply": reply
-    }
+    reply = "Спасибо за ваше обращение. Мы уже работаем над решением вашей проблемы и свяжемся с вами в ближайшее время."
+
+    return JarvisDataEntity(entities.get("name"),
+                           entities.get("phone"),
+                           entities.get("company"),
+                           entities.get("serial_number"),
+                           entities.get("item_type"),
+                           category,
+                           tone,
+                           0.9,  # confidence
+                           reply)
