@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   ClipboardList,
   Activity,
-  FlaskConical,
   PanelLeftClose,
   PanelLeftOpen,
   BarChart3, // Новая иконка
@@ -58,10 +57,6 @@ export const Layout: React.FC<Props> = ({
           <div className="status-indicator">
             <Activity size={14} className="status-icon-pulse" />
             <span className="nav-label">Система активна</span>
-          </div>
-          <div className="mock-badge">
-            <FlaskConical size={12} />
-            <span className="nav-label">MOCK</span>
           </div>
           <button
             className="collapse-btn"

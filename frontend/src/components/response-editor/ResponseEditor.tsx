@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { Bot, Send, Loader2, CheckCircle, PenLine } from "lucide-react";
 import type { Ticket } from "../../types";
-import { api } from "../../services/api";
+import { useSendReply } from "../../services/queries";
 import "./ResponseEditor.css";
 
 interface Props {
@@ -9,29 +10,54 @@ interface Props {
   onSent: () => void;
 }
 
+interface FormValues {
+  replyText: string;
+}
+
 export const ResponseEditor: React.FC<Props> = ({ ticket, onSent }) => {
-  const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const { mutate, isPending, isSuccess } = useSendReply();
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    control,
+    formState: { isValid },
+  } = useForm<FormValues>({
+    defaultValues: { replyText: "" },
+    mode: "onChange",
+  });
+
+  const replyText = useWatch({
+    control,
+    name: "replyText",
+  });
 
   const handleUseAiDraft = () => {
-    if (ticket.ai_draft) setText(ticket.ai_draft);
-  };
-
-  const handleSend = async () => {
-    if (!text.trim()) return;
-    setSending(true);
-    try {
-      await api.sendReply(ticket.id, text);
-      setSent(true);
-      onSent();
-    } catch {
-      alert("Ошибка отправки. Попробуйте ещё раз.");
+    if (ticket.ai_draft) {
+      setValue("replyText", ticket.ai_draft, { shouldValidate: true });
     }
-    setSending(false);
   };
 
-  if (sent) {
+  useEffect(() => {
+    setValue("replyText", "");
+  }, [ticket.id, setValue]);
+
+  const onSubmit = (data: FormValues) => {
+    mutate(
+      { ticketId: ticket.id, text: data.replyText },
+      {
+        onSuccess: () => {
+          onSent();
+        },
+        onError: () => {
+          alert("Ошибка отправки сообщения");
+        },
+      },
+    );
+  };
+
+  if (isSuccess) {
     return (
       <div className="editor-section">
         <div className="editor-sent">
@@ -51,7 +77,11 @@ export const ResponseEditor: React.FC<Props> = ({ ticket, onSent }) => {
         </h3>
         <div className="editor-actions-top">
           {ticket.ai_draft && (
-            <button className="btn btn-ai" onClick={handleUseAiDraft}>
+            <button
+              className="btn btn-ai"
+              onClick={handleUseAiDraft}
+              type="button"
+            >
               <Bot size={14} />
               Вставить AI-черновик
             </button>
@@ -59,39 +89,39 @@ export const ResponseEditor: React.FC<Props> = ({ ticket, onSent }) => {
         </div>
       </div>
 
-      {ticket.ai_draft && !text && (
+      {ticket.ai_draft && !replyText && (
         <div className="ai-draft-hint">
-          AI подготовил черновик ответа. Нажмите кнопку выше, чтобы использовать
-          его.
+          AI подготовил черновик. Нажмите кнопку выше, чтобы использовать его.
         </div>
       )}
 
-      <textarea
-        className="editor-textarea"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={8}
-        placeholder="Введите текст ответа..."
-      />
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <textarea
+          className="editor-textarea"
+          rows={8}
+          placeholder="Введите текст ответа..."
+          {...register("replyText", { required: true, minLength: 5 })}
+        />
 
-      <div className="editor-footer">
-        <span className="char-count">{text.length} символов</span>
-        <button
-          className="btn btn-primary"
-          onClick={handleSend}
-          disabled={sending || !text.trim()}
-        >
-          {sending ? (
-            <>
-              <Loader2 size={14} className="spin" /> Отправка...
-            </>
-          ) : (
-            <>
-              <Send size={14} /> Отправить ответ
-            </>
-          )}
-        </button>
-      </div>
+        <div className="editor-footer">
+          <span className="char-count">{replyText?.length || 0} символов</span>
+          <button
+            className="btn btn-primary"
+            type="submit"
+            disabled={isPending || !isValid}
+          >
+            {isPending ? (
+              <>
+                <Loader2 size={14} className="spin" /> Отправка...
+              </>
+            ) : (
+              <>
+                <Send size={14} /> Отправить ответ
+              </>
+            )}
+          </button>
+        </div>
+      </form>
     </div>
   );
 };

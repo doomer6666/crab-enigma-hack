@@ -1,4 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { z } from "zod";
+import * as XLSX from "xlsx";
 import type {
   Ticket,
   TicketListResponse,
@@ -7,9 +8,114 @@ import type {
   TicketFilters,
   DashboardStats,
 } from "../types";
-import * as XLSX from "xlsx";
 
 const BASE = "/api";
+
+const stringOrNull = z
+  .string()
+  .nullable()
+  .optional()
+  .transform((val) => val ?? null);
+const numberOrNull = z
+  .number()
+  .nullable()
+  .optional()
+  .transform((val) => val ?? null);
+
+const TicketStatusSchema = z.enum([
+  "new",
+  "in_progress",
+  "awaiting_reply",
+  "resolved",
+]);
+
+const TicketSchema = z.object({
+  id: z.number(),
+  subject: z.string(),
+  sender_name: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((v) => v || "Неизвестный"),
+  sender_email: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((v) => v || ""),
+  phone: stringOrNull,
+  object_name: stringOrNull,
+  serial_numbers: stringOrNull,
+  device_type: stringOrNull,
+  category: stringOrNull,
+  priority: z.enum(["low", "medium", "high", "critical"]).catch("medium"),
+  sentiment: z.enum(["positive", "neutral", "negative"]).catch("neutral"),
+  confidence: numberOrNull,
+  status: TicketStatusSchema.or(z.string())
+    .transform((val) => (val === "closed" ? "resolved" : val))
+    .pipe(TicketStatusSchema.catch("new")),
+  ai_draft: stringOrNull,
+  assigned_to: numberOrNull,
+  received_at: stringOrNull,
+  created_at: z.string(),
+  updated_at: z.string(),
+  used_knowledge_ids: z.array(z.number()).optional(),
+});
+
+const MessageSchema = z.object({
+  id: z.number(),
+  ticket_id: z.number(),
+  direction: z.enum(["inbound", "outbound"]),
+  sender: z.string(),
+  recipient: z.string(),
+  subject: z.string().optional(),
+  body_text: z.string().optional(),
+  sent_at: z.string().optional(),
+  created_at: z.string(),
+});
+
+const KnowledgeArticleSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  content: z.string(),
+  category_id: z
+    .number()
+    .nullable()
+    .optional()
+    .transform((v) => v ?? undefined),
+  tags: z
+    .array(z.string())
+    .or(z.string())
+    .transform((val) => {
+      if (Array.isArray(val)) return val;
+      if (typeof val === "string")
+        return val
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      return [];
+    })
+    .optional(),
+});
+
+const PaginatedResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z
+    .object({
+      count: z.number().optional(),
+      total: z.number().optional(),
+      results: z.array(itemSchema).optional(),
+      items: z.array(itemSchema).optional(),
+    })
+    .transform((data) => ({
+      items: data.results || data.items || [],
+      total:
+        data.count || data.total || (data.results || data.items || []).length,
+    }));
+
+const ArrayResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z.array(itemSchema).transform((items) => ({
+    items,
+    total: items.length,
+  }));
 
 function ticketsToRows(tickets: Ticket[]) {
   return tickets.map((t) => ({
@@ -40,39 +146,6 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function transformTags(tags: unknown): string[] {
-  if (!tags) return [];
-  if (Array.isArray(tags)) return tags;
-  if (typeof tags === "string")
-    return tags
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-  return [];
-}
-
-function extractArray<T>(data: unknown): T[] {
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === "object") {
-    const obj = data as Record<string, unknown>;
-    if (Array.isArray(obj.results)) return obj.results as T[];
-    if (Array.isArray(obj.items)) return obj.items as T[];
-    if (Array.isArray(obj.messages)) return obj.messages as T[];
-  }
-  return [];
-}
-
-function extractTotal(data: unknown): number {
-  if (Array.isArray(data)) return data.length;
-  if (data && typeof data === "object") {
-    const obj = data as Record<string, unknown>;
-    if (typeof obj.count === "number") return obj.count;
-    if (typeof obj.total === "number") return obj.total;
-    if (Array.isArray(obj.results)) return obj.results.length;
-  }
-  return 0;
-}
-
 let cachedTickets: Ticket[] = [];
 
 export const realApi = {
@@ -82,15 +155,11 @@ export const realApi = {
     if (filters.status && filters.status !== "active") {
       params.set("status", filters.status);
     }
-
     if (filters.priority) params.set("priority", filters.priority);
-
     if (filters.sentiment) params.set("sentiment", filters.sentiment);
-
     if (filters.search) params.set("search", filters.search);
 
     const isClientFilter = filters.status === "active" || filters.sentiment;
-
     params.set("page", isClientFilter ? "1" : String(filters.page));
     params.set("size", isClientFilter ? "1000" : String(filters.size));
 
@@ -103,45 +172,46 @@ export const realApi = {
       });
       if (!res.ok) return { items: [], total: 0 };
 
-      const data = await res.json();
-      let items = extractArray<Ticket>(data);
-      let total = extractTotal(data);
+      const rawData = await res.json();
+
+      const Schema = z.union([
+        PaginatedResponseSchema(TicketSchema),
+        ArrayResponseSchema(TicketSchema),
+      ]);
+
+      const parsedData = Schema.safeParse(rawData);
+
+      if (!parsedData.success) {
+        console.error("Zod Validation Error:", parsedData.error);
+        return { items: [], total: 0 };
+      }
+
+      const { items, total } = parsedData.data;
+
+      const typedItems = items as unknown as Ticket[];
 
       if (filters.status === "active") {
-        items = items.filter(
-          (t) => t.status !== "resolved" && (t.status as string) !== "closed",
-        );
-        total = items.length;
+        const filtered = typedItems.filter((t) => t.status !== "resolved");
+        return { items: filtered, total: filtered.length };
       }
 
-      if (filters.sentiment) {
-        items = items.filter((t) => t.sentiment === filters.sentiment);
-        total = items.length;
+      if (!filters.status && !filters.search && filters.page === 1) {
+        cachedTickets = typedItems;
       }
 
-      if (
-        !filters.status &&
-        !filters.priority &&
-        !filters.search &&
-        !filters.sentiment &&
-        filters.page === 1
-      ) {
-        cachedTickets = items;
-      }
-
-      return { items, total };
+      return { items: typedItems, total };
     } catch (e) {
-      console.error("getTickets error:", e);
+      console.error("getTickets fetch error:", e);
       return { items: [], total: 0 };
     }
   },
 
   async getTicket(id: number): Promise<Ticket> {
-    const res = await fetch(`${BASE}/tickets/${id}/`, {
-      headers: { "Content-Type": "application/json" },
-    });
+    const res = await fetch(`${BASE}/tickets/${id}/`);
     if (!res.ok) throw new Error(`Ticket ${id} not found`);
-    return res.json();
+    const data = await res.json();
+    const parsed = TicketSchema.parse(data);
+    return parsed as unknown as Ticket;
   },
 
   async updateTicket(id: number, updates: Partial<Ticket>): Promise<Ticket> {
@@ -150,28 +220,28 @@ export const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
     });
-    if (!res.ok) throw new Error(`Update ticket ${id} failed`);
-    return res.json();
+    if (!res.ok) throw new Error(`Update failed`);
+    const data = await res.json();
+    return TicketSchema.parse(data) as unknown as Ticket;
   },
 
   async resolveTicket(id: number): Promise<Ticket> {
-    const res = await fetch(`${BASE}/tickets/${id}/`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "resolved" }),
-    });
-    if (!res.ok) throw new Error(`Resolve ticket ${id} failed`);
-    return res.json();
+    return this.updateTicket(id, { status: "resolved" });
   },
 
   async getMessages(ticketId: number): Promise<Message[]> {
     try {
-      const res = await fetch(`${BASE}/tickets/${ticketId}/messages/`, {
-        headers: { "Content-Type": "application/json" },
-      });
+      const res = await fetch(`${BASE}/tickets/${ticketId}/messages/`);
       if (!res.ok) return [];
       const data = await res.json();
-      return extractArray<Message>(data);
+
+      const Schema = z.union([
+        PaginatedResponseSchema(MessageSchema).transform((d) => d.items),
+        z.array(MessageSchema),
+      ]);
+
+      const parsed = Schema.safeParse(data);
+      return parsed.success ? (parsed.data as unknown as Message[]) : [];
     } catch {
       return [];
     }
@@ -187,22 +257,16 @@ export const realApi = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body_text: bodyText }),
       });
-      if (res.ok) return { success: true };
-    } catch {
-      /* ignore */
-    }
 
-    try {
-      const res = await fetch(`${BASE}/tickets/${ticketId}/`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "awaiting_reply" }),
-      });
-      if (res.ok) return { success: true };
-    } catch {
-      /* ignore */
+      if (res.ok) {
+        await this.updateTicket(ticketId, { status: "awaiting_reply" }).catch(
+          () => {},
+        );
+        return { success: true };
+      }
+    } catch (e) {
+      console.error(e);
     }
-
     return { success: false };
   },
 
@@ -210,18 +274,21 @@ export const realApi = {
     try {
       const res = await fetch(
         `${BASE}/knowledge/?search=${encodeURIComponent(query)}`,
-        { headers: { "Content-Type": "application/json" } },
       );
       if (!res.ok) return [];
       const data = await res.json();
-      const raw = extractArray<any>(data);
-      return raw.map((a: any) => ({
-        id: a.id,
-        title: a.title,
-        content: a.content,
-        category_id: a.category_id ?? null,
-        tags: transformTags(a.tags),
-      }));
+
+      const Schema = z.union([
+        PaginatedResponseSchema(KnowledgeArticleSchema).transform(
+          (d) => d.items,
+        ),
+        z.array(KnowledgeArticleSchema),
+      ]);
+
+      const parsed = Schema.safeParse(data);
+      return parsed.success
+        ? (parsed.data as unknown as KnowledgeArticle[])
+        : [];
     } catch {
       return [];
     }
@@ -229,63 +296,54 @@ export const realApi = {
 
   async getStats(): Promise<DashboardStats> {
     try {
-      const res = await fetch(`${BASE}/stats/`, {
-        headers: { "Content-Type": "application/json" },
-      });
+      const res = await fetch(`${BASE}/stats/`);
       if (res.ok) {
         const data = await res.json();
-        if (data.total !== undefined) return data;
+        const StatsSchema = z.object({
+          total: z.number(),
+          byStatus: z.record(z.string(), z.number()),
+          byPriority: z.record(z.string(), z.number()),
+          bySentiment: z.record(z.string(), z.number()),
+          byCategory: z.record(z.string(), z.number()),
+          byDate: z.record(z.string(), z.number()),
+        });
+        const parsed = StatsSchema.safeParse(data);
+        if (parsed.success) return parsed.data;
       }
     } catch {
-      /* ignore */
+      /* fallback */
     }
 
     try {
-      const res = await fetch(`${BASE}/tickets/?size=1000&page=1`, {
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) {
-        return {
-          total: 0,
-          byStatus: {},
-          byPriority: {},
-          bySentiment: {},
-          byCategory: {},
-          byDate: {},
-        };
-      }
+      const { items } = await this.getTickets({ page: 1, size: 1000 });
 
-      const data = await res.json();
-      const tickets = extractArray<Ticket>(data);
-      const total = extractTotal(data);
-      cachedTickets = tickets;
+      const stats: DashboardStats = {
+        total: items.length,
+        byStatus: {},
+        byPriority: {},
+        bySentiment: {},
+        byCategory: {},
+        byDate: {},
+      };
 
-      const byStatus: Record<string, number> = {};
-      const byPriority: Record<string, number> = {};
-      const bySentiment: Record<string, number> = {};
-      const byCategory: Record<string, number> = {};
-      const byDate: Record<string, number> = {};
+      items.forEach((t) => {
+        stats.byStatus[t.status] = (stats.byStatus[t.status] || 0) + 1;
+        stats.bySentiment[t.sentiment] =
+          (stats.bySentiment[t.sentiment] || 0) + 1;
 
-      tickets.forEach((t) => {
-        if (t.status) byStatus[t.status] = (byStatus[t.status] || 0) + 1;
-        if (t.sentiment)
-          bySentiment[t.sentiment] = (bySentiment[t.sentiment] || 0) + 1;
-        const catName = t.category || "Другое";
-        byCategory[catName] = (byCategory[catName] || 0) + 1;
+        const cat = t.category || "Другое";
+        stats.byCategory[cat] = (stats.byCategory[cat] || 0) + 1;
 
-        if (
-          t.status !== "resolved" &&
-          (t.status as string) !== "closed" &&
-          t.priority
-        ) {
-          byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
+        if (t.status !== "resolved") {
+          stats.byPriority[t.priority] =
+            (stats.byPriority[t.priority] || 0) + 1;
         }
 
-        const dateKey = (t.received_at || t.created_at).split("T")[0];
-        byDate[dateKey] = (byDate[dateKey] || 0) + 1;
+        const dateKey = (t.received_at || t.created_at || "").split("T")[0];
+        if (dateKey) stats.byDate[dateKey] = (stats.byDate[dateKey] || 0) + 1;
       });
 
-      return { total, byStatus, byPriority, bySentiment, byCategory, byDate };
+      return stats;
     } catch {
       return {
         total: 0,
@@ -300,7 +358,7 @@ export const realApi = {
 
   exportCsv(): void {
     if (cachedTickets.length === 0) {
-      alert("Нет данных для экспорта. Откройте таблицу и попробуйте снова.");
+      alert("Нет данных для экспорта или они еще не загружены.");
       return;
     }
     const rows = ticketsToRows(cachedTickets);
@@ -325,7 +383,7 @@ export const realApi = {
 
   exportXlsx(): void {
     if (cachedTickets.length === 0) {
-      alert("Нет данных для экспорта. Откройте таблицу и попробуйте снова.");
+      alert("Нет данных для экспорта или они еще не загружены.");
       return;
     }
     const rows = ticketsToRows(cachedTickets);
