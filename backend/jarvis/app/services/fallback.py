@@ -2,8 +2,7 @@ def fallback_classification():
     return {
         "category": "general",
         "priority": "medium",
-        "sentiment": "neutral",
-        "confidence": 0.3
+        "sentiment": "neutral"
     }
 
 

@@ -1,4 +1,4 @@
-def retrieve_context(text: str) -> list[str]:
+def retrieve_answer(text: str) -> list[str]:
     text_lower = text.lower()
 
     if "пароль" in text_lower:

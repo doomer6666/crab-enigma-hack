@@ -1,4 +1,4 @@
-def classify_text(text: str):
+def classify(text: str):
     text_lower = text.lower()
 
     if "не могу войти" in text_lower or "логин" in text_lower:
