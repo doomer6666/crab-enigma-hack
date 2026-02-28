@@ -6,36 +6,51 @@ from app.services.tone_resolver import ToneResolver
 
 
 class JarvisDataEntity:
-    def __init__(self):
-        self.sender_name = None
-        self.phone = None
-        self.object_name = None
-        self.serial_numbers = None
-        self.device_type = None
-        self.category = None
-        self.sentiment = None
-        self.confidence = None
-        self.ai_draft = None
+    def __init__(self,
+                 sender_name=None,
+                 phone=None,
+                 object_name=None,
+                 serial_numbers=None,
+                 device_type=None,
+                 category=None,
+                 sentiment=None,
+                 confidence=None,
+                 ai_draft=None):
+        self.sender_name = sender_name
+        self.phone = phone
+        self.object_name = object_name
+        self.serial_numbers = serial_numbers
+        self.device_type = device_type
+        self.category = category
+        self.sentiment = sentiment
+        self.confidence = confidence
+        self.ai_draft = ai_draft
 
 
 def process_email(text):
-
+    # Извлекаем сущности из письма
     entities = extract_entities(text)
 
+    # Определяем категорию письма
     category = predict_topic(text)
 
+    # Определяем тон письма
     resolver = ToneResolver()
     tone = resolver.resolve(text)
 
+    # Получаем ответ из базы знаний
     kb = retrieve_answer(text, category)
     reply = generate_reply(category, kb)
 
-    return JarvisDataEntity(entities.get("name"),
-                           entities.get("phone"),
-                           entities.get("company"),
-                           entities.get("serial_number"),
-                           entities.get("item_type"),
-                           category,
-                           tone,
-                           0.9,  # confidence
-                           reply)
+    # Возвращаем объект с данными
+    return JarvisDataEntity(
+        sender_name=entities.name,
+        phone=entities.phone,
+        object_name=entities.company,
+        serial_numbers=entities.serial_number,
+        device_type=entities.item_type,
+        category=category,
+        sentiment=tone,
+        confidence=0.9,
+        ai_draft=reply
+    )
