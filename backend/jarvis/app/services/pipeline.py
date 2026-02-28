@@ -5,6 +5,12 @@ from app.services.mail_extractor import extract_entities
 from app.services.tone_resolver import analyze_sentiment
 
 
+class JarvisDataEntity:
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+
 def process_email(text):
 
     entities = extract_entities(text)
