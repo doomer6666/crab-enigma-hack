@@ -2,20 +2,23 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Чтобы видеть логи в консоли сразу
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-# Копируем зависимости и устанавливаем
+# установить uv
+RUN pip install --no-cache-dir uv
+
+# скопировать зависимости
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем код проекта
+# установить зависимости через uv (быстрее pip)
+RUN uv pip install --system -r requirements.txt
+
+# скопировать код проекта
 COPY . .
 
-# Запуск одной командой:
-# 1. Собираем статику
-# 2. Накатываем миграции
-# 3. Запускаем Gunicorn
+EXPOSE 8000
+
 CMD sh -c "python manage.py collectstatic --noinput && \
            python manage.py migrate && \
            gunicorn config.wsgi:application --bind 0.0.0.0:8000"
