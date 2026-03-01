@@ -4,7 +4,7 @@ from app.services.kb_retriever import retrieve_answer
 from app.services.mail_extractor import extract_entities
 from app.services.tone_resolver import ToneResolver
 
-from backend.jarvis.app.services.rag_service import RagService
+from jarvis.app.services.rag_service import RagService
 
 
 class JarvisDataEntity:
@@ -42,15 +42,15 @@ def process_email(text):
     resolver = ToneResolver()
     tone = resolver.resolve(text)
 
-    kb = retrieve_answer(text, category)
+    #kb = retrieve_answer(text, category)
     service = RagService()
     test_entities = {
-        "device": f"{serial} {item_type}".strip(),
+        "device": f"{item_type}".strip(),
         "issue": text,
         "name": name
     }
 
-    reply = service.resolve_answer(test_entities, mood="negative")
+    reply = service.resolve_answer(test_entities, mood=tone)
 
     return JarvisDataEntity(
         sender_name=name,
