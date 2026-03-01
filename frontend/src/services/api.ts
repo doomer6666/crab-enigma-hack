@@ -1,7 +1,7 @@
-import { realApi } from "./realApi";
+// import { realApi } from "./realApi";
 
-export const api = realApi;
+// export const api = realApi;
 
-// import { mockApi } from "./mockApi";
+import { mockApi } from "./mockApi";
 
-// export const api = mockApi;
+export const api = mockApi;
