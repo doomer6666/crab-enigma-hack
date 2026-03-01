@@ -21,21 +21,34 @@ let tickets = mockTickets.map((t) => ({
 let messageStore = { ...mockMessages };
 let nextMsgId = 100;
 
-function ticketsToRows(data: Ticket[]) {
-  return data.map((t) => ({
+const STATUS_MAP: Record<string, string> = {
+  new: "Новый",
+  in_progress: "В работе",
+  awaiting_reply: "Ожидает ответа",
+  resolved: "Решен",
+};
+
+const SENTIMENT_MAP: Record<string, string> = {
+  positive: "Позитивный",
+  neutral: "Нейтральный",
+  negative: "Негативный",
+};
+
+function ticketsToRows(tickets: Ticket[]) {
+  return tickets.map((t) => ({
     Дата: t.received_at ? new Date(t.received_at).toLocaleString("ru-RU") : "",
-    ФИО: t.sender_name,
+    ФИО: t.sender_name || "",
     Объект: t.object_name || "",
     Телефон: t.phone || "",
     Email: t.sender_email,
     "Заводские номера": t.serial_numbers || "",
     "Тип прибора": t.device_type || "",
-    "Эмоциональный окрас": t.sentiment,
+    "Эмоциональный окрас": SENTIMENT_MAP[t.sentiment] || t.sentiment || "", // Перевод
     Категория: t.category || "",
-    Приоритет: t.priority,
-    Статус: t.status,
-    "AI уверенность": t.confidence ? `${Math.round(t.confidence * 100)}%` : "",
-    "Суть вопроса": t.subject,
+    // Приоритет убран
+    Статус: STATUS_MAP[t.status] || t.status || "", // Перевод
+    // AI уверенность убрана
+    "Суть вопроса": t.subject || "",
   }));
 }
 
