@@ -30,6 +30,7 @@ services:
       - DJANGO_ALLOWED_HOSTS=*
     volumes:
       - static_volume:/app/static
+      - jarvis_models:/jarvis
 
   frontend:
     build: ./frontend
@@ -46,3 +47,4 @@ services:
 volumes:
   postgres_data:
   static_volume:
+  jarvis_models:

@@ -44,6 +44,6 @@ models
 *.bin
 *.safetensors
 
-jarvis_big_brother/
-jarvis_core/
-jarvis_core_alter/
+*jarvis_big_brother
+*jarvis_core
+*jarvis_core_alter
