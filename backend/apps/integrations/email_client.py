@@ -1,6 +1,7 @@
 import imaplib
 import smtplib
 import email
+import threading
 from email.header import decode_header
 from email.mime.text import MIMEText
 from django.conf import settings
@@ -12,6 +13,7 @@ class EmailService:
         self.smtp_server = "smtp.gmail.com"
         self.email_user = settings.EMAIL_HOST_USER
         self.email_pass = settings.EMAIL_HOST_PASSWORD
+        self.mail = None
 
         # Проверка настроек
         if not self.email_user or not self.email_pass:
@@ -69,14 +71,14 @@ class EmailService:
         print(f"🔌 Connecting to IMAP {self.imap_server} as {self.email_user}...")
 
         try:
-            mail = imaplib.IMAP4_SSL(self.imap_server)
-            mail.login(self.email_user, self.email_pass)
-            print("✅ Login successful.")
-
-            mail.select("inbox")
+            if (self.mail == None):
+                self.mail = imaplib.IMAP4_SSL(self.imap_server)
+                self.mail.login(self.email_user, self.email_pass)
+                print("✅ Login successful.")
+            self.mail.select("inbox")
 
             # Ищем непрочитанные
-            status, messages = mail.search(None, "UNSEEN")
+            status, messages = self.mail.search(None, "UNSEEN")
             if status != "OK":
                 print(f"❌ Search failed. Status: {status}")
                 return []
@@ -97,7 +99,7 @@ class EmailService:
                     e_id_str = e_id.decode() if isinstance(e_id, bytes) else str(e_id)
                     print(f"--- Fetching email ID: {e_id_str} ---")
 
-                    _, msg_data = mail.fetch(e_id, "(RFC822)")
+                    _, msg_data = self.mail.fetch(e_id, "(RFC822)")
                     for response_part in msg_data:
                         if isinstance(response_part, tuple):
                             msg = email.message_from_bytes(response_part[1])
@@ -119,9 +121,9 @@ class EmailService:
                             body = self._get_email_body(msg)
 
                             if not body:
-                                print("   ⚠️ Body is empty!")
+                                print("⚠️Body is empty!")
                             else:
-                                print(f"   Body extracted (len: {len(body)})")
+                                print(f"Body extracted (len: {len(body)})")
 
                             results.append({
                                 "subject": subject,
@@ -133,8 +135,6 @@ class EmailService:
                     print(f"❌ Error processing specific email {e_id}: {inner_e}")
                     continue
 
-            mail.close()
-            mail.logout()
             print(f"✅ Finished. Fetched {len(results)} emails.")
             return results
 
@@ -142,21 +142,47 @@ class EmailService:
             print(f"🔥 CRITICAL EMAIL ERROR: {e}")
             return []
 
+    def _send_reply_background(self, to_email, subject, text, max_retries=5):
+        """
+        Фоновая задача отправки письма с попытками повтора.
+        """
+        attempt = 1
+        while attempt <= 500:
+            try:
+                print(f"📤 Sending reply to {to_email} (Attempt {attempt}/{max_retries})...")
+
+                msg = MIMEText(text)
+                msg["Subject"] = f"Re: {subject}"
+                msg["From"] = self.email_user
+                msg["To"] = to_email
+
+                # ВАЖНО: Используем SMTP_SSL (465) как договорились ранее
+                # или если у тебя работает 587 - оставь 587
+                with smtplib.SMTP(self.smtp_server, 587) as server:
+                    server.starttls()
+                    server.login(self.email_user, self.email_pass)
+                    server.send_message(msg)
+
+                print(f"✅ Email sent successfully to {to_email}.")
+                return True
+
+            except Exception as e:
+                print(f"❌ Error sending email (Attempt {attempt}): {e}")
+
+            attempt += 1
+        return False
+
     def send_reply(self, to_email, subject, text):
-        print(f"📤 Sending reply to {to_email}...")
-        try:
-            msg = MIMEText(text)
-            msg["Subject"] = f"Re: {subject}"
-            msg["From"] = self.email_user
-            msg["To"] = to_email
+        """
+        Основной метод. Запускает отправку В ФОНЕ и сразу возвращает управление.
+        """
+        thread = threading.Thread(
+            target=self._send_reply_background,
+            args=(to_email, subject, text)
+        )
+        # Daemon=True означает, что поток завершится, если закроется основная программа
+        thread.daemon = True
+        thread.start()
 
-            with smtplib.SMTP(self.smtp_server, 587) as server:
-                server.starttls()
-                server.login(self.email_user, self.email_pass)
-                server.send_message(msg)
-
-            print("✅ Email sent.")
-            return True
-        except Exception as e:
-            print(f"❌ Error sending email: {e}")
-            return False
+        # Мы сразу говорим "Ок, принято", не дожидаясь реальной отправки
+        return True
