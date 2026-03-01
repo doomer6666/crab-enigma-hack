@@ -10,8 +10,8 @@ drf-spectacular
 fastapi
 uvicorn
 pydantic
-torch
-torchvision
+torch==2.1.1+cpu
+torchvision==0.16.1+cpu
 transformers
 gunicorn
 openpyxl
@@ -26,3 +26,4 @@ langchain-community
 langchain-text-splitters
 faiss-cpu
 pdfplumber
+sentence-transformers==2.2.2

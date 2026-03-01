@@ -26,11 +26,12 @@ services:
     env_file:
       - ./backend/.env
     environment:
+      - PYTHONPATH=/app:/app/jarvis
       - DATABASE_URL=postgres://jarvis_user:jarvis_password@db:5432/jarvis_db
       - DJANGO_ALLOWED_HOSTS=*
     volumes:
       - static_volume:/app/static
-      - jarvis_models:/jarvis
+      - jarvis_models:/app/jarvis
 
   frontend:
     build: ./frontend
@@ -48,3 +49,4 @@ volumes:
   postgres_data:
   static_volume:
   jarvis_models:
+    external: true
