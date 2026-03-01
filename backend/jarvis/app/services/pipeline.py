@@ -31,6 +31,11 @@ class JarvisDataEntity:
 
 def process_email(text):
     entities = extract_entities(text)
+    name = entities.name or ""
+    phone = entities.phone or ""
+    company = entities.company or ""
+    serial = entities.serial_number or ""
+    item_type = entities.item_type or ""
 
     category = predict_topic(text)
 
@@ -40,17 +45,19 @@ def process_email(text):
     kb = retrieve_answer(text, category)
     service = RagService()
     test_entities = {
-        "device": entities.serial_number + " " + entities.item_type,
+        "device": f"{serial} {item_type}".strip(),
         "issue": text,
-        "name": entities.name
+        "name": name
     }
+
     reply = service.resolve_answer(test_entities, mood="negative")
+
     return JarvisDataEntity(
-        sender_name=entities.name,
-        phone=entities.phone,
-        object_name=entities.company,
-        serial_numbers=entities.serial_number,
-        device_type=entities.item_type,
+        sender_name=name,
+        phone=phone,
+        object_name=company,
+        serial_numbers=serial,
+        device_type=item_type,
         category=category,
         sentiment=tone,
         confidence=0.9,

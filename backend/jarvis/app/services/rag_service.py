@@ -18,7 +18,7 @@ BACKEND_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", "..", ".."))
 PDF_DIR = os.path.join(BACKEND_DIR, "data", "manuals")
 DB_DIR = os.path.join(BACKEND_DIR, "data", "faiss_index")
 
-GROQ_API_KEY = ""
+GROQ_API_KEY = "" # йоу
 
 class RagService:
     def __init__(self):
